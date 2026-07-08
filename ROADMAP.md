@@ -48,7 +48,7 @@ Project frontend untuk customer booking yang mengintegrasikan API dari web-booki
 
 #### Day 5-7: Router & App Shell
 ```
-[ ] Create simple SPA router
+[x] Create simple SPA router
     ├── route definitions
     ├── route matching
     ├── navigation handling
