@@ -9,7 +9,17 @@ class TenantService {
    * Get tenant by code (public endpoint)
    */
   async getTenantByCode(code) {
-    return apiClient.get(`/public/tenants/kode/${code}`);
+    // First, look up tenant ID by kode using the public API
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'}/public/tenants/kode/${code}`);
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success) {
+        return data;
+      }
+    }
+
+    throw new Error('Tenant not found');
   }
 
   /**

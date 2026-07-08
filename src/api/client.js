@@ -30,6 +30,13 @@ class ApiClient {
   }
 
   /**
+   * Set tenant code (for public API calls)
+   */
+  getTenantCode() {
+    return Storage.get('tenant_code') || null;
+  }
+
+  /**
    * Build headers with auth and tenant
    */
   buildHeaders(extraHeaders = {}) {
@@ -96,6 +103,37 @@ class ApiClient {
 
     const url = queryString ? `${endpoint}?${queryString}` : endpoint;
     return this.request(url, { ...options, method: 'GET' });
+  }
+
+  /**
+   * GET request with kode parameter (for public endpoints)
+   * Uses X-Tenant-ID header instead of query param
+   */
+  async getPublic(endpoint, params = {}, options = {}) {
+    // Extract kode from params (for public endpoints)
+    const { kode, ...restParams } = params;
+
+    // Build headers with X-Tenant-ID
+    const headers = { ...this.buildHeaders() };
+
+    // If we have a tenant ID directly, use it
+    // Otherwise we might need to look it up
+    const tenantId = this.getTenantId();
+    if (tenantId) {
+      headers['X-Tenant-ID'] = tenantId;
+    }
+
+    const queryString = new URLSearchParams(
+      Object.entries(restParams).filter(([_, v]) => v !== null && v !== undefined && v !== '')
+    ).toString();
+
+    const url = `${this.baseURL}${endpoint}${queryString ? '?' + queryString : ''}`;
+
+    return this.request(url, {
+      ...options,
+      method: 'GET',
+      headers
+    });
   }
 
   /**
