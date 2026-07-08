@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Debug Test</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    .success { color: green; }
+    .error { color: red; }
+    pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+    button { padding: 10px 20px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>API Debug Test</h1>
+  <button onclick="testAPI()">Test API</button>
+  <div id="results"></div>
+
+  <script>
+    const API_BASE = 'http://localhost:3000/api/v1';
+
+    async function testAPI() {
+      const results = document.getElementById('results');
+      results.innerHTML = '<p>Testing...</p>';
+
+      try {
+        // Test 1: Get Tenant
+        results.innerHTML += '<h3>1. Get Tenant</h3>';
+        const tenantRes = await fetch(`${API_BASE}/public/tenants/kode/MAJU1234`);
+        const tenantData = await tenantRes.json();
+        results.innerHTML += `<p class="${tenantData.success ? 'success' : 'error'}">Status: ${tenantData.success}</p>`;
+        results.innerHTML += `<p>Tenant: ${tenantData.data?.name || 'N/A'}</p>`;
+        results.innerHTML += `<pre>${JSON.stringify(tenantData, null, 2)}</pre>`;
+
+        // Test 2: Get Items
+        results.innerHTML += '<h3>2. Get Items</h3>';
+        const itemsRes = await fetch(`${API_BASE}/public/items?kode=MAJU1234&limit=3`);
+        const itemsData = await itemsRes.json();
+        results.innerHTML += `<p class="${itemsData.success ? 'success' : 'error'}">Status: ${itemsData.success}</p>`;
+        results.innerHTML += `<p>Items count: ${itemsData.data?.length || 0}</p>`;
+        results.innerHTML += `<pre>${JSON.stringify(itemsData, null, 2)}</pre>`;
+
+      } catch (error) {
+        results.innerHTML += `<p class="error">Error: ${error.message}</p>`;
+      }
+    }
+
+    // Auto test on load
+    window.onload = testAPI;
+  </script>
+</body>
+</html>

@@ -84,7 +84,7 @@ Project frontend untuk customer booking yang mengintegrasikan API dari web-booki
 
 #### Day 1-3: Catalog Page
 ```
-[ ] Create catalog page
+[x] Create catalog page
     ├── item grid layout
     ├── filter sidebar
     │   ├── type filter
@@ -92,7 +92,7 @@ Project frontend untuk customer booking yang mengintegrasikan API dari web-booki
     │   └── availability filter
     ├── search bar
     └── pagination
-[ ] Create item card component
+[x] Create item card component
     ├── image display
     ├── name & type badge
     ├── price display

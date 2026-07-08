@@ -145,26 +145,42 @@ export async function renderHomePage() {
 }
 
 async function loadFeaturedItems() {
+  const container = document.getElementById('featured-items');
+
   try {
+    console.log('Loading featured items...');
     const response = await itemService.getFeaturedItems(4);
-    const container = document.getElementById('featured-items');
+    console.log('Featured items response:', response);
 
     if (response.success && response.data.length > 0) {
       container.innerHTML = response.data.map(item => renderItemCard(item)).join('');
     } else {
       container.innerHTML = `
         <div class="empty-state" style="grid-column: 1 / -1;">
-          <p class="text-secondary">Belum ada item tersedia</p>
+          <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.3-4.3"/>
+          </svg>
+          <h3 class="empty-state-title">Belum Ada Item</h3>
+          <p class="empty-state-description">Item akan segera ditambahkan</p>
           <a href="/katalog" class="btn btn-primary" style="margin-top: var(--space-md);">Lihat Katalog</a>
         </div>
       `;
     }
   } catch (error) {
     console.error('Failed to load featured items:', error);
-    const container = document.getElementById('featured-items');
     container.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
-        <p class="text-error">Gagal memuat item. Silakan refresh halaman.</p>
+        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-error);">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="m15 9-6 6"/>
+          <path d="m9 9 6 6"/>
+        </svg>
+        <h3 class="empty-state-title">Gagal Memuat Item</h3>
+        <p class="empty-state-description">${error.message || 'Terjadi kesalahan saat memuat data'}</p>
+        <button class="btn btn-primary" style="margin-top: var(--space-md);" onclick="location.reload()">
+          Muat Ulang
+        </button>
       </div>
     `;
   }

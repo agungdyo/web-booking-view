@@ -79,11 +79,11 @@ POST /auth/login                    # Login customer
 POST /customers/public              # Register customer
 GET  /customers/:id/bookings       # Get customer bookings
 
-// Items
-GET  /items                         # List all items
-GET  /items/:id                      # Get item details
-GET  /items/:id/availability        # Check availability
-GET  /items/types                    # Get item types
+// Items (Public)
+GET  /public/items                  # List items (uses X-Tenant-ID header)
+GET  /public/items/:id              # Get item details
+GET  /public/items/:id/availability # Check availability
+GET  /public/items/types            # Get item types
 
 // Booking
 GET  /bookings/track/:code          # Track booking by code
@@ -102,7 +102,10 @@ GET  /bookings/:id                  # Get booking details
 ### Header Requirements
 ```javascript
 // For public endpoints
-X-Tenant-ID: <tenant_uuid>  // Optional, can use kodeTenant instead
+X-Tenant-ID: <tenant_uuid>  // Header approach (RECOMMENDED)
+
+OR use kode parameter in URL:
+GET /public/items?kode=MAJU1234
 
 // For authenticated requests
 Authorization: Bearer <token>

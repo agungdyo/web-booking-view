@@ -61,11 +61,14 @@ class ItemService {
    */
   async getFeaturedItems(limit = 4) {
     const tenantCode = Storage.get('tenant_code');
+    console.log('[ItemService] Getting featured items, tenantCode:', tenantCode);
 
-    return apiClient.get('/public/items', {
+    const result = apiClient.get('/public/items', {
       kode: tenantCode,
       limit,
     });
+    console.log('[ItemService] Result:', result);
+    return result;
   }
 }
 

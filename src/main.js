@@ -24,12 +24,20 @@ import { renderDashboardPage } from './pages/dashboard.page.js';
  * Initialize application
  */
 async function initApp() {
-  console.log('Initializing web-booking-view...');
+  console.log('[App] Starting initialization...');
+  console.log('[App] VITE_DEFAULT_TENANT:', import.meta.env.VITE_DEFAULT_TENANT);
 
-  // Initialize tenant
-  await tenantService.initializeTenant();
+  try {
+    // Initialize tenant
+    console.log('[App] Initializing tenant...');
+    const tenant = await tenantService.initializeTenant();
+    console.log('[App] Tenant initialized:', tenant?.name || 'No tenant');
+  } catch (error) {
+    console.error('[App] Tenant init error:', error);
+  }
 
   // Render header and footer
+  console.log('[App] Rendering header/footer...');
   renderHeader();
   renderFooter();
 
@@ -41,6 +49,7 @@ async function initApp() {
   setupRoutes();
 
   // Initialize router
+  console.log('[App] Initializing router...');
   router.init();
 
   // Make navigateTo globally available
@@ -59,7 +68,7 @@ async function initApp() {
     }
   };
 
-  console.log('App initialized successfully');
+  console.log('[App] Initialization complete');
 }
 
 /**
