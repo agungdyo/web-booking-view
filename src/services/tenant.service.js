@@ -6,10 +6,10 @@ import Storage from '../utils/storage.js';
 
 class TenantService {
   /**
-   * Get tenant by code
+   * Get tenant by code (public endpoint)
    */
   async getTenantByCode(code) {
-    return apiClient.get(`/tenants/kode/${code}`);
+    return apiClient.get(`/public/tenants/kode/${code}`);
   }
 
   /**

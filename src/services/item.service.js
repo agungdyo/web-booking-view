@@ -1,56 +1,70 @@
 /**
- * Item Service
+ * Item Service - Public API
  */
 import apiClient from '../api/client.js';
 import Storage from '../utils/storage.js';
 
 class ItemService {
   /**
-   * Get all items
+   * Get all items (public endpoint)
    */
   async getItems(params = {}) {
-    return apiClient.get('/items', {
+    // Use kode from tenant storage
+    const tenantCode = Storage.get('tenant_code');
+
+    return apiClient.get('/public/items', {
+      kode: tenantCode,
       page: params.page || 1,
       limit: params.limit || 12,
       type: params.type || null,
-      is_available: params.is_available !== false ? true : null,
       search: params.search || null,
-      min_price: params.min_price || null,
-      max_price: params.max_price || null,
     });
   }
 
   /**
-   * Get item by ID
+   * Get item by ID (public endpoint)
    */
   async getItem(id) {
-    return apiClient.get(`/items/${id}`);
+    const tenantCode = Storage.get('tenant_code');
+
+    return apiClient.get(`/public/items/${id}`, {
+      kode: tenantCode,
+    });
   }
 
   /**
-   * Check item availability
+   * Check item availability (public endpoint)
    */
   async checkAvailability(itemId, startDate, endDate) {
-    return apiClient.get(`/items/${itemId}/availability`, {
+    const tenantCode = Storage.get('tenant_code');
+
+    return apiClient.get(`/public/items/${itemId}/availability`, {
+      kode: tenantCode,
       start_date: startDate,
       end_date: endDate,
     });
   }
 
   /**
-   * Get item types
+   * Get item types (public endpoint)
    */
   async getItemTypes() {
-    return apiClient.get('/items/types');
+    const tenantCode = Storage.get('tenant_code');
+
+    return apiClient.get('/public/items/types', {
+      kode: tenantCode,
+    });
   }
 
   /**
-   * Get featured items
+   * Get featured items (public endpoint)
    */
   async getFeaturedItems(limit = 4) {
-    return apiClient.get('/items', {
+    const tenantCode = Storage.get('tenant_code');
+
+    return apiClient.get('/public/items', {
+      kode: tenantCode,
       limit,
-      is_available: true,
     });
   }
 }
