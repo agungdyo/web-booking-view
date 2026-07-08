@@ -7,7 +7,7 @@ import Toast from '../components/toast.component.js';
 
 export async function renderLoginPage({ query }) {
   const content = document.getElementById('page-content');
-  const redirect = query.get('redirect') || '/';
+  const redirect = query.redirect || '/';
 
   // If already logged in, redirect
   if (authService.isLoggedIn()) {

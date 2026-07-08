@@ -7,8 +7,8 @@ import { formatItemType } from '../utils/format.js';
 
 export async function renderCatalogPage({ query }) {
   const content = document.getElementById('page-content');
-  const typeFilter = query.get('type') || '';
-  const searchQuery = query.get('search') || '';
+  const typeFilter = query.type || '';
+  const searchQuery = query.search || '';
 
   content.innerHTML = `
     <section class="section">

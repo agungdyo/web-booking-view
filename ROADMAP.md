@@ -53,22 +53,22 @@ Project frontend untuk customer booking yang mengintegrasikan API dari web-booki
     ├── route matching
     ├── navigation handling
     └── 404 page
-[ ] Create app shell
+[x] Create app shell
     ├── main.js entry point
     ├── app.js (main app class)
     ├── header component
     └── footer component
-[ ] Create home page template
+[x] Create home page template
     ├── hero section
     ├── featured items
     └── quick actions
 ```
 
 ### Deliverables
-- [ ] Project builds and runs
-- [ ] Basic routing works
-- [ ] API client functional
-- [ ] CSS framework ready
+- [x] Project builds and runs
+- [x] Basic routing works
+- [x] API client functional
+- [x] CSS framework ready
 
 ---
 
