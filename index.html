@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Booking online mudah dan cepat - Pesan gedung, kendaraan, alat, dan sarana lainnya">
+  <meta name="theme-color" content="#3b82f6">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Booking Online">
+  <meta property="og:description" content="Booking online mudah dan cepat">
+  <meta property="og:type" content="website">
+
+  <title>Booking Online</title>
+
+  <!-- Flatpickr CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/light.css">
+
+  <!-- App Styles -->
+  <link rel="stylesheet" href="/src/styles/variables.css">
+  <link rel="stylesheet" href="/src/styles/reset.css">
+  <link rel="stylesheet" href="/src/styles/components.css">
+  <link rel="stylesheet" href="/src/styles/responsive.css">
+  <link rel="stylesheet" href="/src/styles/main.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header will be rendered here -->
+    <header id="header"></header>
+
+    <!-- Main content -->
+    <main id="main-content">
+      <div id="page-content" class="page-container"></div>
+    </main>
+
+    <!-- Footer will be rendered here -->
+    <footer id="footer"></footer>
+
+    <!-- Toast container -->
+    <div id="toast-container"></div>
+
+    <!-- Modal container -->
+    <div id="modal-container"></div>
+  </div>
+
+  <!-- Flatpickr JS -->
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/id.js"></script>
+
+  <!-- App Scripts -->
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

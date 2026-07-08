@@ -1,0 +1,193 @@
+/* Responsive Styles */
+
+/* Mobile-first breakpoints */
+/* Base styles are for mobile (320px+) */
+
+/* Small devices (landscape phones, 576px+) */
+@media (min-width: 576px) {
+  .page-container {
+    padding: 0 var(--space-lg);
+  }
+
+  .grid-cols-1-sm { grid-template-columns: repeat(1, 1fr); }
+  .grid-cols-2-sm { grid-template-columns: repeat(2, 1fr); }
+  .grid-cols-3-sm { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Medium devices (tablets, 768px+) */
+@media (min-width: 768px) {
+  .page-container {
+    padding: 0 var(--space-xl);
+  }
+
+  .grid-cols-1-md { grid-template-columns: repeat(1, 1fr); }
+  .grid-cols-2-md { grid-template-columns: repeat(2, 1fr); }
+  .grid-cols-3-md { grid-template-columns: repeat(3, 1fr); }
+  .grid-cols-4-md { grid-template-columns: repeat(4, 1fr); }
+
+  .hide-md { display: none; }
+  .show-md { display: block; }
+}
+
+/* Large devices (desktops, 992px+) */
+@media (min-width: 992px) {
+  .grid-cols-1-lg { grid-template-columns: repeat(1, 1fr); }
+  .grid-cols-2-lg { grid-template-columns: repeat(2, 1fr); }
+  .grid-cols-3-lg { grid-template-columns: repeat(3, 1fr); }
+  .grid-cols-4-lg { grid-template-columns: repeat(4, 1fr); }
+
+  .hide-lg { display: none; }
+  .show-lg { display: block; }
+}
+
+/* Extra large devices (large desktops, 1200px+) */
+@media (min-width: 1200px) {
+  .grid-cols-1-xl { grid-template-columns: repeat(1, 1fr); }
+  .grid-cols-2-xl { grid-template-columns: repeat(2, 1fr); }
+  .grid-cols-3-xl { grid-template-columns: repeat(3, 1fr); }
+  .grid-cols-4-xl { grid-template-columns: repeat(4, 1fr); }
+
+  .hide-xl { display: none; }
+  .show-xl { display: block; }
+}
+
+/* Hide on mobile only */
+@media (max-width: 767px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+/* Hide on desktop only */
+@media (min-width: 768px) {
+  .hide-desktop {
+    display: none !important;
+  }
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 767px) {
+  /* Smaller padding on mobile */
+  .section {
+    padding: var(--space-xl) 0;
+  }
+
+  .card-body {
+    padding: var(--space-md);
+  }
+
+  /* Full-width buttons on mobile */
+  .btn-block-mobile {
+    width: 100%;
+  }
+
+  /* Stack form elements on mobile */
+  .form-row {
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+
+  /* Compact header on mobile */
+  .header {
+    height: var(--header-height-mobile);
+    padding: 0 var(--space-sm);
+  }
+
+  /* Larger touch targets on mobile */
+  .btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Touch-friendly inputs */
+  .form-input {
+    min-height: 44px;
+  }
+
+  /* Bottom padding for fixed elements */
+  .has-bottom-nav {
+    padding-bottom: calc(var(--bottom-nav-height) + var(--space-md));
+  }
+
+  /* Horizontal scroll for tables on mobile */
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 768px) and (max-width: 991px) {
+  .grid-cols-2-tablet { grid-template-columns: repeat(2, 1fr); }
+  .grid-cols-3-tablet { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Landscape mode adjustments */
+@media (max-height: 500px) and (orientation: landscape) {
+  .header {
+    height: 50px;
+  }
+
+  .hero {
+    min-height: auto;
+    padding: var(--space-lg) 0;
+  }
+}
+
+/* Print styles */
+@media print {
+  .header, .footer, .btn, nav {
+    display: none !important;
+  }
+
+  .card {
+    box-shadow: none;
+    border: 1px solid var(--border-light);
+  }
+
+  body {
+    background: white;
+    color: black;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-primary: #1f2937;
+    --bg-secondary: #111827;
+    --bg-tertiary: #374151;
+    --text-primary: #f9fafb;
+    --text-secondary: #d1d5db;
+    --text-tertiary: #9ca3af;
+    --border-light: #374151;
+    --border-medium: #4b5563;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  :root {
+    --border-medium: #000;
+    --text-secondary: #000;
+  }
+
+  .btn {
+    border: 2px solid currentColor;
+  }
+}
