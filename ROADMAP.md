@@ -112,11 +112,11 @@ Project frontend untuk customer booking yang mengintegrasikan API dari web-booki
     ├── specifications display
     ├── price display
     └── availability checker
-[ ] Create date picker integration
+[x] Create date picker integration
     ├── Flatpickr setup
     ├── range selection
     └── disable booked dates
-[ ] Add to cart functionality
+[x] Add to cart functionality
 ```
 
 #### Day 6-7: Tenant & Configuration

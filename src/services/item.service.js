@@ -79,15 +79,67 @@ class ItemService {
   }
 
   /**
-   * Check item availability
+   * Check item availability for a date range
    * GET /public/items/:id/availability
    */
   async checkAvailability(itemId, startDate, endDate, quantity = 1) {
     const kodeTenant = this.getKodeTenant();
 
     const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'}/public/items/${itemId}/availability?kode=${kodeTenant}&start_date=${startDate}&end_date=${endDate}&quantity=${quantity}`;
+    console.log('[ItemService] Checking availability:', url);
+
     const response = await fetch(url);
     return response.json();
+  }
+
+  /**
+   * Get availability calendar - returns booked dates for a date range
+   * GET /public/items/:id/availability-calendar
+   * Returns array of { date, available, booked }
+   */
+  async getAvailabilityCalendar(itemId, startDate, endDate) {
+    const kodeTenant = this.getKodeTenant();
+
+    const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'}/public/items/${itemId}/availability-calendar?kode=${kodeTenant}&start_date=${startDate}&end_date=${endDate}`;
+    console.log('[ItemService] Getting availability calendar:', url);
+
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      console.log('[ItemService] Availability calendar:', data);
+      return data;
+    } catch (error) {
+      console.error('[ItemService] Availability calendar error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get booked/unavailable dates for an item (next 90 days by default)
+   * This is a convenience method that calls the availability calendar
+   * Returns an array of date strings that are fully booked
+   */
+  async getBookedDates(itemId, days = 90) {
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + days);
+
+    const startStr = startDate.toISOString().split('T')[0];
+    const endStr = endDate.toISOString().split('T')[0];
+
+    const result = await this.getAvailabilityCalendar(itemId, startStr, endStr);
+
+    if (result.success && result.data) {
+      // Filter dates that are not available (booked or blocked)
+      const bookedDates = result.data
+        .filter(day => !day.available)
+        .map(day => day.date);
+
+      console.log('[ItemService] Booked dates:', bookedDates);
+      return bookedDates;
+    }
+
+    return [];
   }
 
   /**

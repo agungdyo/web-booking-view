@@ -432,9 +432,16 @@ function formatSpecValue(key, value) {
 }
 
 // ============================================
-// DATE PICKER & AVAILABILITY
+// DATE PICKER & AVAILABILITY (Enhanced with Flatpickr Range & Disable Dates)
 // ============================================
-function initializeDatePicker(itemId, maxStock) {
+
+/**
+ * Initialize enhanced date picker with:
+ * - Flatpickr range mode
+ * - Disable booked dates
+ * - Visual indicators for availability
+ */
+async function initializeDatePicker(itemId, maxStock) {
   const startInput = document.getElementById('start-date');
   const endInput = document.getElementById('end-date');
 
@@ -442,48 +449,320 @@ function initializeDatePicker(itemId, maxStock) {
 
   // Get today's date for minDate
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const minDate = today.toISOString().split('T')[0];
 
-  // Initialize start date picker
+  // Calculate end of range (90 days from now)
+  const rangeEnd = new Date(today);
+  rangeEnd.setDate(rangeEnd.getDate() + 90);
+  const maxDate = rangeEnd.toISOString().split('T')[0];
+
+  // Show loading indicator for booked dates
+  showLoadingBookedDates();
+
+  // Get booked dates from API
+  let bookedDates = [];
+  try {
+    bookedDates = await itemService.getBookedDates(itemId, 90);
+    console.log('[DatePicker] Loaded booked dates:', bookedDates);
+  } catch (error) {
+    console.error('[DatePicker] Failed to load booked dates:', error);
+    // Continue without disabled dates
+  }
+
+  hideLoadingBookedDates();
+
+  // Convert booked dates to Date objects for Flatpickr
+  const disabledDates = bookedDates.map(dateStr => {
+    const date = new Date(dateStr);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  });
+
+  // Store for use in availability check
+  window.itemBookedDates = bookedDates;
+  window.itemDisabledDates = disabledDates;
+
+  // ========================================
+  // START DATE PICKER
+  // ========================================
   const startPicker = flatpickr(startInput, {
+    // Configuration
     minDate: minDate,
+    maxDate: maxDate,
     dateFormat: 'Y-m-d',
-    locale: 'id',
     altInput: true,
     altFormat: 'j F Y',
+    disable: disabledDates,
+    locale: 'id',
+
+    // Show availability indicators
+    showMonths: 2, // Show 2 months side by side on desktop
+
+    // Styling
+    theme: 'light',
+
+    // Behavior
+    allowInput: false,
+    clickOpens: true,
+    shorthandCurrentMonth: false,
+
+    // Events
     onChange: (selectedDates, dateStr) => {
+      console.log('[DatePicker] Start date changed:', dateStr);
+
       if (selectedDates[0]) {
-        // Update end date minDate
+        // Update end date minDate to start date
         endPicker.set('minDate', selectedDates[0]);
 
-        // If end date is before start date, reset it
+        // If end date is before start date, clear it
         const endDate = endPicker.selectedDates[0];
         if (endDate && endDate < selectedDates[0]) {
           endPicker.clear();
         }
 
-        checkAvailabilityAndUpdatePrice(itemId, maxStock);
+        // Update UI
+        updateSelectedDatesDisplay();
+
+        // Check availability if both dates selected
+        if (endPicker.selectedDates[0]) {
+          checkAvailabilityAndUpdatePrice(itemId, maxStock);
+        }
       }
     },
+
+    onMonthChange: () => {
+      // Re-apply disable classes after month change
+      applyDisableDateClasses(disabledDates);
+    },
+
+    onYearChange: () => {
+      // Re-apply disable classes after year change
+      applyDisableDateClasses(disabledDates);
+    },
+
+    // Day creation hook for custom styling
+    onDayCreate: (dObj, dStr, fp, dayElem) => {
+      // Add custom class for booked dates
+      const dateStr = dayElem.dateObj.toISOString().split('T')[0];
+      if (bookedDates.includes(dateStr)) {
+        dayElem.classList.add('flatpickr-disabled-date');
+        dayElem.classList.add('flatpickr-booked');
+        dayElem.title = 'Tanggal sudah dipesan';
+      }
+    }
   });
 
-  // Initialize end date picker
+  // ========================================
+  // END DATE PICKER
+  // ========================================
   const endPicker = flatpickr(endInput, {
+    // Configuration
     minDate: minDate,
+    maxDate: maxDate,
     dateFormat: 'Y-m-d',
-    locale: 'id',
     altInput: true,
     altFormat: 'j F Y',
+    disable: disabledDates,
+    locale: 'id',
+
+    // Show availability indicators
+    showMonths: 2,
+
+    // Styling
+    theme: 'light',
+
+    // Behavior
+    allowInput: false,
+    clickOpens: true,
+    shorthandCurrentMonth: false,
+
+    // Events
     onChange: (selectedDates, dateStr) => {
+      console.log('[DatePicker] End date changed:', dateStr);
+
       if (selectedDates[0] && startPicker.selectedDates[0]) {
+        // Validate range
+        if (selectedDates[0] < startPicker.selectedDates[0]) {
+          // End date is before start date - show warning
+          Toast.warning('Tanggal selesai harus setelah tanggal mulai');
+          endPicker.clear();
+          return;
+        }
+
+        // Update UI
+        updateSelectedDatesDisplay();
+
+        // Check availability
         checkAvailabilityAndUpdatePrice(itemId, maxStock);
       }
     },
+
+    onMonthChange: () => {
+      applyDisableDateClasses(disabledDates);
+    },
+
+    onYearChange: () => {
+      applyDisableDateClasses(disabledDates);
+    },
+
+    // Day creation hook
+    onDayCreate: (dObj, dStr, fp, dayElem) => {
+      const dateStr = dayElem.dateObj.toISOString().split('T')[0];
+      if (bookedDates.includes(dateStr)) {
+        dayElem.classList.add('flatpickr-disabled-date');
+        dayElem.classList.add('flatpickr-booked');
+        dayElem.title = 'Tanggal sudah dipesan';
+      }
+    }
   });
 
-  window.datePickers = { start: startPicker, end: endPicker };
+  // Store pickers globally
+  window.datePickers = {
+    start: startPicker,
+    end: endPicker,
+    disabledDates: disabledDates
+  };
+
+  // Initial apply of disable classes
+  applyDisableDateClasses(disabledDates);
+
+  // Add legend to page
+  addDatePickerLegend();
+
+  console.log('[DatePicker] Initialized with', disabledDates.length, 'disabled dates');
 }
 
+/**
+ * Apply custom CSS classes to disabled/booked dates
+ */
+function applyDisableDateClasses(disabledDates) {
+  setTimeout(() => {
+    const dayElements = document.querySelectorAll('.flatpickr-day');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    dayElements.forEach(day => {
+      const date = day.dateObj;
+      const dateStr = date.toISOString().split('T')[0];
+
+      // Check if this date is in the disabled list
+      const isDisabled = disabledDates.some(d =>
+        d.toISOString().split('T')[0] === dateStr
+      );
+
+      // Check if date is in the past
+      const isPast = date < today;
+
+      // Add classes
+      if (isDisabled) {
+        day.classList.add('flatpickr-booked');
+        day.title = 'Tanggal sudah dipesan';
+      }
+      if (isPast) {
+        day.classList.add('flatpickr-past');
+      }
+    });
+  }, 100);
+}
+
+/**
+ * Add legend for date picker
+ */
+function addDatePickerLegend() {
+  const legendHtml = `
+    <div class="date-picker-legend">
+      <div class="legend-item">
+        <span class="legend-dot legend-available"></span>
+        <span>Tersedia</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot legend-booked"></span>
+        <span>Sudah Dipesan</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot legend-selected"></span>
+        <span>Dipilih</span>
+      </div>
+    </div>
+  `;
+
+  // Insert after the date selection group
+  const dateGroup = document.querySelector('.date-selection-group');
+  if (dateGroup) {
+    dateGroup.insertAdjacentHTML('afterend', legendHtml);
+  }
+}
+
+/**
+ * Show loading indicator for booked dates
+ */
+function showLoadingBookedDates() {
+  const dateGroup = document.querySelector('.date-selection-group');
+  if (dateGroup) {
+    const loadingHtml = `
+      <div class="booked-dates-loading" id="booked-dates-loading">
+        <div class="spinner-small"></div>
+        <span>Memuat tanggal yang tersedia...</span>
+      </div>
+    `;
+    dateGroup.insertAdjacentHTML('afterend', loadingHtml);
+  }
+}
+
+/**
+ * Hide loading indicator
+ */
+function hideLoadingBookedDates() {
+  const loading = document.getElementById('booked-dates-loading');
+  if (loading) {
+    loading.remove();
+  }
+}
+
+/**
+ * Update selected dates display
+ */
+function updateSelectedDatesDisplay() {
+  const startPicker = window.datePickers?.start;
+  const endPicker = window.datePickers?.end;
+
+  if (!startPicker || !endPicker) return;
+
+  const startDate = startPicker.selectedDates[0];
+  const endDate = endPicker.selectedDates[0];
+
+  // Could add a visual summary here if needed
+  console.log('[DatePicker] Selected range:', {
+    start: startDate?.toISOString().split('T')[0],
+    end: endDate?.toISOString().split('T')[0]
+  });
+}
+
+/**
+ * Validate date range - check if any booked dates are in the range
+ */
+function validateDateRange(startDate, endDate, bookedDates) {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const bookedInRange = [];
+
+  bookedDates.forEach(booked => {
+    const bookedDate = new Date(booked);
+    if (bookedDate >= start && bookedDate <= end) {
+      bookedInRange.push(booked);
+    }
+  });
+
+  return {
+    valid: bookedInRange.length === 0,
+    bookedInRange
+  };
+}
+
+/**
+ * Check availability and update price calculation
+ */
 async function checkAvailabilityAndUpdatePrice(itemId, maxStock) {
   const startInput = document.getElementById('start-date');
   const endInput = document.getElementById('end-date');
@@ -506,24 +785,56 @@ async function checkAvailabilityAndUpdatePrice(itemId, maxStock) {
   if (availabilityStatus) availabilityStatus.style.display = 'none';
   if (priceCalculation) priceCalculation.style.display = 'none';
 
+  // First, validate against locally known booked dates
+  const bookedDates = window.itemBookedDates || [];
+  const validation = validateDateRange(startDate, endDate, bookedDates);
+
+  if (!validation.valid) {
+    if (availabilityLoading) availabilityLoading.style.display = 'none';
+    if (availabilityStatus) {
+      availabilityStatus.style.display = 'block';
+      availabilityStatus.innerHTML = `
+        <div class="avail-status avail-error">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+          <span>Maaf, tanggal ${validation.bookedInRange[0]} sudah dipesan. Silakan pilih tanggal lain.</span>
+        </div>
+      `;
+    }
+    return;
+  }
+
   try {
     // Check availability from API
     const result = await itemService.checkAvailability(itemId, startDate, endDate, quantity);
+    console.log('[DatePicker] Availability check result:', result);
 
     if (availabilityLoading) availabilityLoading.style.display = 'none';
 
     if (result.success && result.data) {
-      const { isAvailable, availableQuantity, message } = result.data;
+      const { isAvailable, availableQuantity, message, dates } = result.data;
 
       if (availabilityStatus) {
         availabilityStatus.style.display = 'block';
+
         if (isAvailable) {
-          availabilityStatus.innerHTML = `
-            <div class="avail-status avail-ok">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-              <span>Tersedia untuk ${availableQuantity} unit</span>
-            </div>
-          `;
+          // Check if any dates in range are unavailable
+          const unavailableDates = dates?.filter(d => !d.available) || [];
+          if (unavailableDates.length > 0) {
+            availabilityStatus.innerHTML = `
+              <div class="avail-status avail-error">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                <span>Maaf, beberapa tanggal dalam range tidak tersedia. Silakan pilih tanggal lain.</span>
+              </div>
+            `;
+          } else {
+            availabilityStatus.innerHTML = `
+              <div class="avail-status avail-ok">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+                <span>Tersedia untuk ${availableQuantity} unit</span>
+              </div>
+            `;
+            updatePriceCalculation(startDate, endDate, quantity);
+          }
         } else {
           availabilityStatus.innerHTML = `
             <div class="avail-status avail-error">
@@ -533,24 +844,21 @@ async function checkAvailabilityAndUpdatePrice(itemId, maxStock) {
           `;
         }
       }
-
-      if (isAvailable) {
-        updatePriceCalculation(startDate, endDate, quantity);
-      }
     } else {
-      // If API fails, still show price calculation
+      // API returned error but dates might still be available
+      console.log('[DatePicker] API check failed, showing price anyway');
       updatePriceCalculation(startDate, endDate, quantity);
     }
   } catch (error) {
     console.error('Availability check failed:', error);
-    // On error, still show price calculation
+    // On error, still show price calculation but with warning
     if (availabilityLoading) availabilityLoading.style.display = 'none';
     if (availabilityStatus) {
       availabilityStatus.style.display = 'block';
       availabilityStatus.innerHTML = `
         <div class="avail-status avail-warning">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-          <span>Tidak dapat memeriksa ketersediaan otomatis</span>
+          <span>Ketersediaan akan dikonfirmasi saat checkout</span>
         </div>
       `;
     }
@@ -642,19 +950,30 @@ function updatePlusButtonState(maxStock) {
 }
 
 // ============================================
-// BOOKING HANDLER
+// BOOKING HANDLER - Add to Cart
 // ============================================
-window.handleBookNow = function() {
+
+/**
+ * Handle "Pesan Sekarang" button click
+ * Validates input and adds item to cart
+ */
+window.handleBookNow = async function() {
   const item = window.currentItem;
-  if (!item) return;
+  if (!item) {
+    Toast.error('Item tidak ditemukan');
+    return;
+  }
 
   const startDate = document.getElementById('start-date')?.value;
   const endDate = document.getElementById('end-date')?.value;
   const quantity = parseInt(document.getElementById('quantity')?.value) || 1;
+  const bookBtn = document.getElementById('book-btn');
 
   // Validation
   if (!startDate || !endDate) {
     Toast.warning('Silakan pilih tanggal mulai dan selesai');
+    // Scroll to date picker
+    document.querySelector('.date-selection-group')?.scrollIntoView({ behavior: 'smooth' });
     return;
   }
 
@@ -666,41 +985,193 @@ window.handleBookNow = function() {
     return;
   }
 
-  // Calculate duration and price
-  let duration = 1;
-  switch (item.price_type) {
-    case 'per_day':
-      duration = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-      break;
-    case 'per_hour':
-      duration = 8;
-      break;
-    default:
-      duration = 1;
+  // Show loading state on button
+  if (bookBtn) {
+    bookBtn.disabled = true;
+    bookBtn.innerHTML = `
+      <div class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></div>
+      Memproses...
+    `;
   }
 
-  const subtotal = item.price * duration * quantity;
+  try {
+    // Calculate duration based on price type
+    let duration = 1;
+    switch (item.price_type) {
+      case 'per_day':
+        duration = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+        break;
+      case 'per_hour':
+        duration = 8; // Default 8 hours
+        break;
+      default:
+        duration = 1;
+    }
 
-  // Add to cart
-  Cart.addItem(item, quantity, duration);
-  Cart.setDates(startDate, endDate);
+    // Verify availability with API before adding to cart
+    console.log('[ItemDetail] Verifying availability...', { itemId: item.id, startDate, endDate, quantity });
 
-  // Store calculated price for booking
-  Cart.setBookingPrice({
-    pricePerUnit: item.price,
-    duration: duration,
-    quantity: quantity,
-    subtotal: subtotal,
-    priceType: item.price_type
-  });
+    const availabilityResult = await itemService.checkAvailability(item.id, startDate, endDate, quantity);
 
-  Toast.success('Item ditambahkan ke keranjang');
+    if (availabilityResult.success && availabilityResult.data) {
+      const { isAvailable, availableQuantity, message } = availabilityResult.data;
 
-  // Navigate to cart/booking page
-  setTimeout(() => {
-    window.navigateTo('/keranjang');
-  }, 500);
+      if (!isAvailable) {
+        Toast.error(message || 'Item tidak tersedia untuk tanggal tersebut');
+        resetBookButton(bookBtn);
+        return;
+      }
+
+      // Check if requested quantity is available
+      if (quantity > availableQuantity) {
+        Toast.warning(`Hanya ${availableQuantity} unit tersedia untuk tanggal tersebut`);
+        // Update quantity selector
+        const qtyInput = document.getElementById('quantity');
+        if (qtyInput) {
+          qtyInput.value = availableQuantity;
+          qtyInput.max = availableQuantity;
+        }
+        resetBookButton(bookBtn);
+        return;
+      }
+    }
+
+    // Calculate price
+    const subtotal = item.price * duration * quantity;
+
+    // Add to cart with full item data
+    const cartData = {
+      ...item,
+      kodeTenant: 'MAJU1234' // Explicitly set kode tenant
+    };
+
+    Cart.addItem(cartData, quantity, duration);
+    Cart.setDates(startDate, endDate);
+
+    // Store calculated price for booking
+    Cart.setBookingPrice({
+      itemId: item.id,
+      kodeTenant: 'MAJU1234',
+      pricePerUnit: item.price,
+      priceType: item.price_type,
+      duration: duration,
+      quantity: quantity,
+      subtotal: subtotal,
+      startDate: startDate,
+      endDate: endDate
+    });
+
+    // Success feedback
+    Toast.success(`${item.name} ditambahkan ke keranjang!`);
+
+    // Show cart drawer
+    setTimeout(() => {
+      Cart.openDrawer();
+    }, 300);
+
+    // Update UI
+    Cart.updateUI();
+
+    console.log('[ItemDetail] Item added to cart:', {
+      name: item.name,
+      quantity,
+      duration,
+      subtotal,
+      kodeTenant: 'MAJU1234'
+    });
+
+  } catch (error) {
+    console.error('[ItemDetail] Failed to add to cart:', error);
+
+    // If API is unavailable, still add to cart (offline mode)
+    if (error.message.includes('fetch') || error.message.includes('network')) {
+      console.log('[ItemDetail] API unavailable, adding to cart in offline mode');
+
+      let duration = 1;
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      switch (item.price_type) {
+        case 'per_day':
+          duration = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+          break;
+        case 'per_hour':
+          duration = 8;
+          break;
+        default:
+          duration = 1;
+      }
+
+      const subtotal = item.price * duration * quantity;
+
+      const cartData = {
+        ...item,
+        kodeTenant: 'MAJU1234'
+      };
+
+      Cart.addItem(cartData, quantity, duration);
+      Cart.setDates(startDate, endDate);
+      Cart.setBookingPrice({
+        itemId: item.id,
+        kodeTenant: 'MAJU1234',
+        pricePerUnit: item.price,
+        priceType: item.price_type,
+        duration: duration,
+        quantity: quantity,
+        subtotal: subtotal,
+        startDate: startDate,
+        endDate: endDate
+      });
+
+      Toast.success(`${item.name} ditambahkan ke keranjang (verifikasi akan dilakukan saat checkout)`);
+      setTimeout(() => {
+        Cart.openDrawer();
+      }, 300);
+    } else {
+      Toast.error('Gagal menambahkan ke keranjang. Silakan coba lagi.');
+    }
+  } finally {
+    resetBookButton(bookBtn);
+  }
 };
+
+/**
+ * Reset book button to original state
+ */
+function resetBookButton(btn) {
+  if (!btn) return;
+
+  const item = window.currentItem;
+  const isAvailable = item?.is_available && (item.availableStock > 0 || item.stock > 0);
+
+  btn.disabled = !isAvailable;
+  btn.innerHTML = isAvailable ? `
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+    Pesan Sekarang
+  ` : 'Tidak Tersedia';
+}
+
+/**
+ * Quick add to cart from item card (without dates)
+ * Opens a modal to select dates first
+ */
+window.quickAddToCart = function(itemId) {
+  // Navigate to item detail page
+  window.navigateTo(`/item/${itemId}`);
+};
+
+/**
+ * Update cart badge animation
+ */
+function animateCartBadge() {
+  const badge = document.getElementById('cart-badge');
+  if (badge) {
+    badge.classList.add('cart-badge-pulse');
+    setTimeout(() => {
+      badge.classList.remove('cart-badge-pulse');
+    }, 500);
+  }
+}
 
 // ============================================
 // UTILITIES

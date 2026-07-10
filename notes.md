@@ -1,17 +1,25 @@
 lanjutkan pengembangan frontend untuk customer booking yang mengintegrasikan API dari folder /web-booking backend, dan fokus aplikasi frontend booking di folder projek web-booking-view
 
-cek create item detail page, dengan detail :
-1. image galery
-2. item info (name, type, description)
-3. spesification display
-4. price display
-5. availability checker 
+
+cek create date picker integration, dengan detail :
+1. flatpickr setup
+2. range selection
+3. disable booked dates
 
 
 gunakan crdential
 kode tenant MAJU1234 (case sensitive!)
-username : admin@majujaya.id
+username : budi@email.com
 password : password123
+
+jangan gunakan tenant id, x-tenant id ataupun id tenant lagi, tapi gunakan kode tenan, di seluruh codebase backend dan frontend
+
+
+tampilan item mengarah ke endpoint http://localhost:3000/api/v1/public/items/ea42f7d8-3ca6-455e-acb1-a3d76ca8e0cb/availability?kode=MAJU1234&start_date=2026-07-10&end_date=2026-10-08, senhingga response error {"success":false,"error":{"code":"NOT_FOUND","message":"Endpoint not found"}}, sedangkan ada enpoint yang tersedia item nya yaitu http://localhost:3000/api/v1/public/items/ea42f7d8-3ca6-455e-acb1-a3d76ca8e0cb/availability?kode=MAJU1234&start_date=2026-07-10&end_date=2026-07-25&quantity=1, dengan response {"success":true,"data":{"itemId":"ea42f7d8-3ca6-455e-acb1-a3d76ca8e0cb","itemName":"Test Item Fix","startDate":"2026-07-10","endDate":"2026-07-25"}}, apakah yang di maksud oleh tampilan detail item adalah salah
+
+lalu cek tampilan cart, di frontend tidak ada tampilan cart, apakah masuk ke halaman bookings?
+
+
 
 
 ## API Integration - Completed
