@@ -1,5 +1,5 @@
 /**
- * Home Page
+ * Home Page with Loading States
  */
 import { itemService } from '../services/item.service.js';
 import { renderItemCard, renderItemCardSkeleton } from '../components/item-card.component.js';
@@ -33,8 +33,15 @@ export async function renderHomePage() {
           <p class="text-secondary">Pilihan terbaik untuk kebutuhan Anda</p>
         </div>
 
+        <!-- Loading State -->
         <div class="items-grid" id="featured-items">
           ${Array(4).fill(renderItemCardSkeleton()).join('')}
+        </div>
+
+        <!-- Loading Indicator -->
+        <div class="loading-indicator" id="featured-loading" style="display: none; text-align: center; padding: var(--space-lg);">
+          <div class="spinner"></div>
+          <p style="margin-top: var(--space-sm);">Memuat item...</p>
         </div>
 
         <div style="text-align: center; margin-top: var(--space-xl);">
@@ -144,46 +151,80 @@ export async function renderHomePage() {
   loadFeaturedItems();
 }
 
+/**
+ * Load featured items with loading states
+ */
 async function loadFeaturedItems() {
   const container = document.getElementById('featured-items');
+  const loadingIndicator = document.getElementById('featured-loading');
 
   try {
-    console.log('Loading featured items...');
-    const response = await itemService.getFeaturedItems(4);
-    console.log('Featured items response:', response);
+    console.log('[Home] Loading featured items...');
 
-    if (response.success && response.data.length > 0) {
-      container.innerHTML = response.data.map(item => renderItemCard(item)).join('');
+    // Show loading state
+    container.innerHTML = Array(4).fill(renderItemCardSkeleton()).join('');
+    loadingIndicator.style.display = 'block';
+
+    const response = await itemService.getItems({ limit: 4 });
+    console.log('[Home] Featured items response:', response);
+
+    // Hide loading indicator
+    loadingIndicator.style.display = 'none';
+
+    if (response.success) {
+      let items = response.data || [];
+
+      // Handle nested data structure
+      if (items.items) {
+        items = items.items;
+      }
+
+      if (items.length > 0) {
+        container.innerHTML = items.map(item => renderItemCard(item)).join('');
+      } else {
+        container.innerHTML = `
+          <div class="empty-state" style="grid-column: 1 / -1;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.3-4.3"/>
+            </svg>
+            <h3 class="empty-state-title">Belum Ada Item</h3>
+            <p class="empty-state-description">Item akan segera ditambahkan</p>
+            <a href="/katalog" class="btn btn-primary" style="margin-top: var(--space-md);">Lihat Katalog</a>
+          </div>
+        `;
+      }
     } else {
-      container.innerHTML = `
-        <div class="empty-state" style="grid-column: 1 / -1;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"/>
-            <path d="m21 21-4.3-4.3"/>
-          </svg>
-          <h3 class="empty-state-title">Belum Ada Item</h3>
-          <p class="empty-state-description">Item akan segera ditambahkan</p>
-          <a href="/katalog" class="btn btn-primary" style="margin-top: var(--space-md);">Lihat Katalog</a>
-        </div>
-      `;
+      throw new Error(response.error?.message || 'Gagal memuat data');
     }
   } catch (error) {
-    console.error('Failed to load featured items:', error);
+    console.error('[Home] Failed to load featured items:', error);
+
+    // Hide loading indicator
+    if (loadingIndicator) {
+      loadingIndicator.style.display = 'none';
+    }
+
     container.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
         <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-error);">
           <circle cx="12" cy="12" r="10"/>
-          <path d="m15 9-6 6"/>
-          <path d="m9 9 6 6"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
         <h3 class="empty-state-title">Gagal Memuat Item</h3>
         <p class="empty-state-description">${error.message || 'Terjadi kesalahan saat memuat data'}</p>
-        <button class="btn btn-primary" style="margin-top: var(--space-md);" onclick="location.reload()">
+        <button class="btn btn-primary" style="margin-top: var(--space-md);" onclick="window.homeRetryLoad()">
           Muat Ulang
         </button>
       </div>
     `;
   }
 }
+
+// Global retry function
+window.homeRetryLoad = function() {
+  loadFeaturedItems();
+};
 
 export default renderHomePage;

@@ -1,29 +1,75 @@
 /**
  * Authentication Service
+ * Handles user authentication and token management
  */
 import apiClient from '../api/client.js';
 import Storage from '../utils/storage.js';
 
 class AuthService {
   /**
-   * Login customer
+   * Login with email and password
+   * @param {string} email - User email
+   * @param {string} password - User password
+   * @param {string} kodeTenant - Optional tenant code for login
    */
-  async login(email, password) {
-    const response = await apiClient.post('/auth/login', { email, password });
+  async login(email, password, kodeTenant = null) {
+    console.log('[AuthService] Login attempt:', email);
+
+    const payload = {
+      email,
+      password,
+    };
+
+    // Add tenant code if provided
+    // Note: The backend login doesn't require kodeTenant (SSO style)
+    // But we store it for reference
+    const tenantCode = kodeTenant || import.meta.env.VITE_DEFAULT_TENANT;
+
+    const response = await apiClient.post('/auth/login', payload);
 
     if (response.success) {
-      const { token, refresh_token, user } = response.data;
-      Storage.set('customer', {
+      const { accessToken, refreshToken, user } = response.data;
+
+      // Store customer data
+      const customerData = {
         id: user.id,
         name: user.name,
         email: user.email,
-        token,
-        refresh_token,
-      });
-      Storage.set('tenant_id', user.tenant_id);
+        role: user.role,
+        token: accessToken,
+        refresh_token: refreshToken,
+        tenant_id: user.tenant_id || Storage.get('tenant_id'),
+        kodeTenant: user.kodeTenant || tenantCode,
+      };
+
+      Storage.set('customer', customerData);
+
+      // Also store in localStorage for direct access
+      localStorage.setItem('customer', JSON.stringify(customerData));
+
+      // Store tenant info
+      if (user.tenant_id) {
+        Storage.set('tenant_id', user.tenant_id);
+      }
+      if (user.kodeTenant) {
+        Storage.set('tenant_code', user.kodeTenant);
+      } else if (tenantCode) {
+        Storage.set('tenant_code', tenantCode);
+      }
+
+      console.log('[AuthService] Login successful:', user.name);
     }
 
     return response;
+  }
+
+  /**
+   * Login with credentials (convenience method)
+   * Uses predefined credentials for demo purposes
+   */
+  async loginWithCredentials(email, password) {
+    const kodeTenant = import.meta.env.VITE_DEFAULT_TENANT;
+    return this.login(email, password, kodeTenant);
   }
 
   /**
@@ -38,7 +84,7 @@ class AuthService {
     };
 
     // Add tenant code if available
-    const tenantCode = Storage.get('tenant_code');
+    const tenantCode = Storage.get('tenant_code') || import.meta.env.VITE_DEFAULT_TENANT;
     if (tenantCode) {
       payload.kodeTenant = tenantCode;
     }
@@ -57,7 +103,19 @@ class AuthService {
    * Get current customer
    */
   getCurrentCustomer() {
-    return Storage.get('customer');
+    // Try Storage first
+    const customer = Storage.get('customer');
+    if (customer) return customer;
+
+    // Fallback to localStorage
+    try {
+      const local = localStorage.getItem('customer');
+      if (local) return JSON.parse(local);
+    } catch (e) {
+      // Ignore
+    }
+
+    return null;
   }
 
   /**
@@ -73,7 +131,8 @@ class AuthService {
    */
   logout() {
     Storage.remove('customer');
-    Storage.remove('cart');
+    localStorage.remove('customer');
+    console.log('[AuthService] Logged out');
   }
 
   /**
@@ -90,13 +149,33 @@ class AuthService {
     });
 
     if (response.success) {
-      Storage.set('customer', {
+      const updated = {
         ...customer,
         token: response.data.token,
-      });
+        refresh_token: response.data.refresh_token || customer.refresh_token,
+      };
+      Storage.set('customer', updated);
+      localStorage.setItem('customer', JSON.stringify(updated));
     }
 
     return response;
+  }
+
+  /**
+   * Get current user info
+   */
+  async getMe() {
+    return apiClient.getAuth('/auth/me');
+  }
+
+  /**
+   * Change password
+   */
+  async changePassword(currentPassword, newPassword) {
+    return apiClient.postAuth('/auth/change-password', {
+      currentPassword,
+      newPassword,
+    });
   }
 }
 

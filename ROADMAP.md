@@ -98,7 +98,7 @@ Project frontend untuk customer booking yang mengintegrasikan API dari web-booki
     ├── price display
     ├── availability indicator
     └── CTA button
-[ ] Implement API integration
+[x] Implement API integration
     ├── GET /items (list)
     ├── GET /items/types
     └── loading states

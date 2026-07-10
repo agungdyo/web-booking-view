@@ -1,5 +1,6 @@
 /**
  * API Client - Fetch wrapper for API calls
+ * Supports authenticated endpoints with Bearer token
  */
 
 import Storage from '../utils/storage.js';
@@ -38,14 +39,29 @@ class ApiClient {
 
   /**
    * Build headers with auth and tenant
+   * @param {Object} extraHeaders - Additional headers to merge
+   * @param {boolean} requireAuth - Whether to include auth token
    */
-  buildHeaders(extraHeaders = {}) {
+  buildHeaders(extraHeaders = {}, requireAuth = false) {
     const headers = { ...this.defaultHeaders, ...extraHeaders };
 
-    // Add auth token if available
+    // Add auth token if available or required
     const token = this.getToken();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
+    } else if (requireAuth) {
+      // Try to get from localStorage directly if not in Storage wrapper
+      const localCustomer = localStorage.getItem('customer');
+      if (localCustomer) {
+        try {
+          const parsed = JSON.parse(localCustomer);
+          if (parsed.token) {
+            headers['Authorization'] = `Bearer ${parsed.token}`;
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
     }
 
     // Add tenant ID if available
@@ -59,13 +75,16 @@ class ApiClient {
 
   /**
    * Make API request
+   * @param {string} endpoint - API endpoint
+   * @param {Object} options - Fetch options
+   * @param {boolean} requireAuth - Whether auth is required
    */
-  async request(endpoint, options = {}) {
+  async request(endpoint, options = {}, requireAuth = false) {
     const url = `${this.baseURL}${endpoint}`;
     const config = {
       ...options,
       headers: {
-        ...this.buildHeaders(),
+        ...this.buildHeaders(options.headers || {}, requireAuth),
         ...options.headers,
       },
     };
@@ -94,7 +113,7 @@ class ApiClient {
   }
 
   /**
-   * GET request
+   * GET request (public endpoint)
    */
   async get(endpoint, params = {}, options = {}) {
     const queryString = new URLSearchParams(
@@ -137,7 +156,19 @@ class ApiClient {
   }
 
   /**
-   * POST request
+   * GET request for authenticated endpoints
+   */
+  async getAuth(endpoint, params = {}, options = {}) {
+    const queryString = new URLSearchParams(
+      Object.entries(params).filter(([_, v]) => v !== null && v !== undefined && v !== '')
+    ).toString();
+
+    const url = queryString ? `${endpoint}?${queryString}` : endpoint;
+    return this.request(url, { ...options, method: 'GET' }, true);
+  }
+
+  /**
+   * POST request (public endpoint)
    */
   async post(endpoint, body = {}, options = {}) {
     return this.request(endpoint, {
@@ -145,6 +176,17 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(body),
     });
+  }
+
+  /**
+   * POST request for authenticated endpoints
+   */
+  async postAuth(endpoint, body = {}, options = {}) {
+    return this.request(endpoint, {
+      ...options,
+      method: 'POST',
+      body: JSON.stringify(body),
+    }, true);
   }
 
   /**
@@ -159,6 +201,17 @@ class ApiClient {
   }
 
   /**
+   * PUT request for authenticated endpoints
+   */
+  async putAuth(endpoint, body = {}, options = {}) {
+    return this.request(endpoint, {
+      ...options,
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }, true);
+  }
+
+  /**
    * DELETE request
    */
   async delete(endpoint, options = {}) {
@@ -166,6 +219,16 @@ class ApiClient {
       ...options,
       method: 'DELETE',
     });
+  }
+
+  /**
+   * DELETE request for authenticated endpoints
+   */
+  async deleteAuth(endpoint, options = {}) {
+    return this.request(endpoint, {
+      ...options,
+      method: 'DELETE',
+    }, true);
   }
 }
 

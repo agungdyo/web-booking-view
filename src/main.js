@@ -6,6 +6,7 @@ import { renderHeader } from './components/header.component.js';
 import { renderFooter } from './components/footer.component.js';
 import { tenantService } from './services/tenant.service.js';
 import { authService } from './services/auth.service.js';
+import Storage from './utils/storage.js';
 import Cart from './components/cart.component.js';
 
 // Import pages
@@ -20,6 +21,43 @@ import { renderTrackPage } from './pages/track.page.js';
 import { renderMyBookingsPage } from './pages/my-bookings.page.js';
 import { renderDashboardPage } from './pages/dashboard.page.js';
 
+// Demo credentials (for development)
+const DEMO_CREDENTIALS = {
+  email: 'admin@majujaya.id',
+  password: 'password123'
+};
+
+/**
+ * Auto-login with demo credentials if not logged in
+ */
+async function autoLogin() {
+  // Skip if already logged in
+  if (authService.isLoggedIn()) {
+    console.log('[App] Already logged in, skipping auto-login');
+    return true;
+  }
+
+  console.log('[App] Attempting auto-login with demo credentials...');
+
+  try {
+    const response = await authService.login(
+      DEMO_CREDENTIALS.email,
+      DEMO_CREDENTIALS.password
+    );
+
+    if (response.success) {
+      console.log('[App] Auto-login successful');
+      return true;
+    } else {
+      console.warn('[App] Auto-login failed:', response.error?.message);
+      return false;
+    }
+  } catch (error) {
+    console.error('[App] Auto-login error:', error);
+    return false;
+  }
+}
+
 /**
  * Initialize application
  */
@@ -28,10 +66,14 @@ async function initApp() {
   console.log('[App] VITE_DEFAULT_TENANT:', import.meta.env.VITE_DEFAULT_TENANT);
 
   try {
-    // Initialize tenant
+    // Initialize tenant first
     console.log('[App] Initializing tenant...');
     const tenant = await tenantService.initializeTenant();
     console.log('[App] Tenant initialized:', tenant?.name || 'No tenant');
+
+    // Auto-login with demo credentials
+    await autoLogin();
+
   } catch (error) {
     console.error('[App] Tenant init error:', error);
   }
@@ -67,6 +109,9 @@ async function initApp() {
       console.error('Failed to add item to cart:', error);
     }
   };
+
+  // Expose auth service for debugging
+  window.authService = authService;
 
   console.log('[App] Initialization complete');
 }

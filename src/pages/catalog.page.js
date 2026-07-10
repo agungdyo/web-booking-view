@@ -1,8 +1,13 @@
 /**
- * Catalog Page with Sidebar Filters
+ * Catalog Page with Sidebar Filters & Loading States
+ * Integrates with authenticated API endpoints
  */
 import { itemService } from '../services/item.service.js';
 import { renderItemCard, renderItemCardSkeleton } from '../components/item-card.component.js';
+
+// State management
+let isLoading = false;
+let currentTypes = [];
 
 export async function renderCatalogPage({ query }) {
   const content = document.getElementById('page-content');
@@ -311,6 +316,9 @@ export async function renderCatalogPage({ query }) {
   // Update active filters display
   updateActiveFiltersDisplay();
 
+  // Load item types for filter
+  loadItemTypes();
+
   // Load items
   loadItems({
     type: typeFilter,
@@ -322,14 +330,55 @@ export async function renderCatalogPage({ query }) {
   });
 }
 
+/**
+ * Load item types from API for dynamic filter
+ */
+async function loadItemTypes() {
+  try {
+    console.log('[Catalog] Loading item types...');
+    const response = await itemService.getItemTypes();
+
+    if (response.success && response.data) {
+      currentTypes = response.data;
+      console.log('[Catalog] Item types loaded:', currentTypes);
+      // Could update filter UI dynamically based on available types
+    }
+  } catch (error) {
+    console.error('[Catalog] Failed to load item types:', error);
+  }
+}
+
+/**
+ * Set loading state
+ */
+function setLoading(loading) {
+  isLoading = loading;
+  const container = document.getElementById('items-grid');
+  const resultsCount = document.getElementById('results-count');
+
+  if (loading) {
+    container.innerHTML = Array(8).fill(renderItemCardSkeleton()).join('');
+    resultsCount.textContent = 'Memuat...';
+    // Add loading overlay
+    container.classList.add('loading');
+  } else {
+    container.classList.remove('loading');
+  }
+}
+
 async function loadItems(params = {}) {
   const container = document.getElementById('items-grid');
   const resultsCount = document.getElementById('results-count');
 
-  container.innerHTML = Array(8).fill(renderItemCardSkeleton()).join('');
-  resultsCount.textContent = 'Memuat...';
+  // Show loading state
+  setLoading(true);
+
+  // Add refresh button to retry
+  const retryHandler = () => loadItems(params);
 
   try {
+    console.log('[Catalog] Loading items with params:', params);
+
     // Build API params
     const apiParams = {
       page: params.page || 1,
@@ -349,9 +398,15 @@ async function loadItems(params = {}) {
     }
 
     const response = await itemService.getItems(apiParams);
+    console.log('[Catalog] API Response:', response);
 
     if (response.success) {
       let items = response.data || [];
+
+      // Handle nested data structure from API
+      if (items.items) {
+        items = items.items;
+      }
 
       // Client-side price filtering if min/max specified
       if (params.min_price || params.max_price) {
@@ -391,20 +446,37 @@ async function loadItems(params = {}) {
       resultsCount.textContent = 'Gagal memuat item';
       container.innerHTML = `
         <div class="empty-state" style="grid-column: 1 / -1;">
-          <p class="text-error">Gagal memuat item. Silakan refresh halaman.</p>
-          <button class="btn btn-primary" style="margin-top: var(--space-md);" onclick="loadItems(${JSON.stringify(params)})">Coba Lagi</button>
+          <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-state-icon">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <h3 class="empty-state-title">Gagal Memuat Data</h3>
+          <p class="empty-state-description">Terjadi kesalahan saat mengambil data item</p>
+          <button class="btn btn-primary" onclick="window.catalogRetryLoad()">Coba Lagi</button>
         </div>
       `;
+      document.getElementById('pagination').innerHTML = '';
     }
   } catch (error) {
-    console.error('Failed to load items:', error);
-    resultsCount.textContent = 'Error memuat data';
+    console.error('[Catalog] Failed to load items:', error);
+    resultsCount.textContent = 'Error: ' + error.message;
     container.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
-        <p class="text-error">Gagal memuat item. Silakan refresh halaman.</p>
-        <button class="btn btn-primary" style="margin-top: var(--space-md);" onclick="loadItems(${JSON.stringify(params)})">Coba Lagi</button>
+        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-state-icon">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <h3 class="empty-state-title">Koneksi Gagal</h3>
+        <p class="empty-state-description">Tidak dapat terhubung ke server. Periksa koneksi internet Anda.</p>
+        <button class="btn btn-primary" onclick="window.catalogRetryLoad()">Coba Lagi</button>
       </div>
     `;
+    document.getElementById('pagination').innerHTML = '';
+  } finally {
+    // Clear loading state
+    setLoading(false);
   }
 }
 
@@ -648,6 +720,18 @@ window.goToPage = function(page) {
     max_price: params.get('max_price') || '',
     availability: params.get('availability') || '',
     page,
+  });
+};
+
+window.catalogRetryLoad = function() {
+  const params = new URLSearchParams(window.location.search);
+  loadItems({
+    type: params.get('type') || '',
+    search: params.get('search') || '',
+    min_price: params.get('min_price') || '',
+    max_price: params.get('max_price') || '',
+    availability: params.get('availability') || '',
+    page: parseInt(params.get('page')) || 1,
   });
 };
 
