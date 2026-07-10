@@ -106,7 +106,7 @@ Project frontend untuk customer booking yang mengintegrasikan API dari web-booki
 
 #### Day 4-5: Item Detail Page
 ```
-[ ] Create item detail page
+[x] Create item detail page
     ├── image gallery
     ├── item info (name, type, description)
     ├── specifications display

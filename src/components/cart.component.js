@@ -98,6 +98,15 @@ class Cart {
   }
 
   /**
+   * Set booking price details
+   */
+  static setBookingPrice(priceDetails) {
+    const cart = this.getCart();
+    cart.priceDetails = priceDetails;
+    this.saveCart(cart);
+  }
+
+  /**
    * Clear cart
    */
   static clear() {
