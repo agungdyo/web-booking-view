@@ -153,7 +153,7 @@ class AuthService {
    */
   logout() {
     Storage.remove('customer');
-    localStorage.remove('wb_customer');
+    localStorage.removeItem('wb_customer');
     console.log('[AuthService] Logged out');
   }
 

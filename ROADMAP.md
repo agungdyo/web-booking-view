@@ -130,11 +130,11 @@ Project frontend untuk customer booking yang mengintegrasikan API dari web-booki
 ```
 
 ### Deliverables
-- [ ] Catalog page functional
-- [ ] Item search & filter works
-- [ ] Item detail page displays correctly
-- [ ] Date picker integrated
-- [ ] Multi-tenant support ready
+- [X] Catalog page functional
+- [X] Item search & filter works
+- [X] Item detail page displays correctly
+- [X] Date picker integrated
+- [X] Multi-tenant support ready
 
 ---
 
