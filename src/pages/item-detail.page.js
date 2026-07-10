@@ -97,7 +97,7 @@ function renderItemDetail(item) {
 
             <!-- Price Display -->
             <div class="item-price-section">
-              ${renderPriceDisplay(item.price, item.price_type)}
+              ${renderPriceDisplay(item.price, item.priceType || item.price_type)}
             </div>
 
             <!-- Description -->
@@ -174,7 +174,7 @@ function renderItemDetail(item) {
                 <h4 class="calculation-title">Ringkasan Harga</h4>
                 <div class="calculation-rows">
                   <div class="calc-row">
-                    <span class="calc-label">Harga per ${getPriceUnitLabel(item.price_type)}</span>
+                    <span class="calc-label">Harga per ${getPriceUnitLabel(item.priceType || item.price_type)}</span>
                     <span class="calc-value">${formatCurrency(item.price)}</span>
                   </div>
                   <div class="calc-row">
@@ -877,7 +877,7 @@ function updatePriceCalculation(startDate, endDate, quantity) {
   let duration = 1;
   let durationLabel = '1 unit';
 
-  switch (item.price_type) {
+  switch (item.priceType || item.price_type) {
     case 'per_day':
       duration = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
       durationLabel = `${duration} hari`;
@@ -997,7 +997,7 @@ window.handleBookNow = async function() {
   try {
     // Calculate duration based on price type
     let duration = 1;
-    switch (item.price_type) {
+    switch (item.priceType || item.price_type) {
       case 'per_day':
         duration = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
         break;
@@ -1053,7 +1053,7 @@ window.handleBookNow = async function() {
       itemId: item.id,
       kodeTenant: 'MAJU1234',
       pricePerUnit: item.price,
-      priceType: item.price_type,
+      priceType: item.priceType || item.price_type,
       duration: duration,
       quantity: quantity,
       subtotal: subtotal,
@@ -1091,7 +1091,7 @@ window.handleBookNow = async function() {
       const start = new Date(startDate);
       const end = new Date(endDate);
 
-      switch (item.price_type) {
+      switch (item.priceType || item.price_type) {
         case 'per_day':
           duration = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
           break;
@@ -1115,7 +1115,7 @@ window.handleBookNow = async function() {
         itemId: item.id,
         kodeTenant: 'MAJU1234',
         pricePerUnit: item.price,
-        priceType: item.price_type,
+        priceType: item.priceType || item.price_type,
         duration: duration,
         quantity: quantity,
         subtotal: subtotal,

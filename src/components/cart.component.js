@@ -60,7 +60,7 @@ class Cart {
         name: item.name,
         type: item.type,
         price: item.price,
-        price_type: item.price_type || 'per_day',
+        price_type: item.priceType || item.price_type || 'per_day',
         quantity: quantity,
         days: days,
         totalPrice: item.price * quantity * days,
@@ -484,7 +484,7 @@ class Cart {
           <h4 class="cart-item-name">${item.name}</h4>
           <div class="cart-item-meta">
             <span class="cart-item-price">${formatCurrency(item.price)}</span>
-            <span class="cart-item-unit">${formatPriceType(item.price_type)}</span>
+            <span class="cart-item-unit">${formatPriceType(item.priceType || item.price_type)}</span>
           </div>
           <div class="cart-item-footer">
             <div class="cart-item-qty">
