@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Standalone Test - No Build</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    .debug { background: #f5f5f5; padding: 10px; margin: 5px 0; border-radius: 4px; font-size: 12px; }
+    .success { border-left: 4px solid green; }
+    .error { border-left: 4px solid red; }
+    #items-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-top: 20px; }
+    .item-card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; background: white; }
+    .item-card h4 { margin: 0 0 8px 0; font-size: 14px; }
+    .item-card p { margin: 4px 0; font-size: 12px; color: #666; }
+    .price { font-weight: bold; color: #3b82f6; }
+  </style>
+</head>
+<body>
+  <h1>Standalone API Test (No Build)</h1>
+  <p>This test makes a direct API call without any bundling.</p>
+  
+  <button onclick="runTest()">Run Test</button>
+  <button onclick="clearOutput()">Clear</button>
+  
+  <div id="debug" style="margin-top: 20px;"></div>
+  <div id="items-container"></div>
+  
+  <script>
+    const API_BASE = 'http://localhost:3000/api/v1';
+    const TENANT_CODE = 'MAJU1234';
+    
+    function log(msg, data) {
+      const div = document.createElement('div');
+      div.className = 'debug';
+      div.textContent = msg + (data ? ': ' + JSON.stringify(data) : '');
+      document.getElementById('debug').appendChild(div);
+      console.log(msg, data);
+    }
+    
+    function logSuccess(msg, data) {
+      const div = document.createElement('div');
+      div.className = 'debug success';
+      div.textContent = msg + (data ? ': ' + JSON.stringify(data) : '');
+      document.getElementById('debug').appendChild(div);
+      console.log(msg, data);
+    }
+    
+    function logError(msg, err) {
+      const div = document.createElement('div');
+      div.className = 'debug error';
+      div.textContent = msg + ': ' + err;
+      document.getElementById('debug').appendChild(div);
+      console.error(msg, err);
+    }
+    
+    function clearOutput() {
+      document.getElementById('debug').innerHTML = '';
+      document.getElementById('items-container').innerHTML = '';
+    }
+    
+    async function runTest() {
+      clearOutput();
+      log('Starting test...');
+      
+      const url = `${API_BASE}/public/items?kode=${TENANT_CODE}&page=1&limit=8`;
+      log('Request URL:', url);
+      
+      try {
+        const response = await fetch(url);
+        log('Response status:', response.status);
+        
+        const data = await response.json();
+        logSuccess('Response received', { success: data.success, items: data.data?.length });
+        
+        if (data.success && data.data) {
+          logSuccess('Rendering ' + data.data.length + ' items...');
+          
+          const container = document.getElementById('items-container');
+          data.data.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'item-card';
+            card.innerHTML = `
+              <h4>${item.name}</h4>
+              <p>Type: ${item.type}</p>
+              <p class="price">Rp ${item.price.toLocaleString('id-ID')}</p>
+              <p>Available: ${item.isAvailable ? 'Yes' : 'No'}</p>
+            `;
+            container.appendChild(card);
+          });
+          
+          logSuccess('Done!');
+        } else {
+          logError('API error', data.error?.message || 'Unknown error');
+        }
+      } catch (err) {
+        logError('Fetch error', err.message);
+      }
+    }
+  </script>
+</body>
+</html>

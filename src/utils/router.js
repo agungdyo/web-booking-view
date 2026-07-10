@@ -408,9 +408,11 @@ class Router {
    */
   async handleRoute() {
     const path = this.getPath();
+    console.log('[Router] handleRoute called for path:', path);
 
     // 1. Match route
     const match = this.matchRoute(path);
+    console.log('[Router] Route match:', match ? match.route.path : 'No match');
 
     // 2. Run beforeEach guard
     if (this.beforeEach) {
@@ -550,7 +552,10 @@ class Router {
    */
   init() {
     // Handle initial route
+    console.log('[Router] Initializing router...');
+    console.log('[Router] Current path:', this.getPath());
     this.handleRoute();
+    console.log('[Router] Router initialized');
 
     return this;
   }

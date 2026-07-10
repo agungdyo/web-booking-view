@@ -370,6 +370,8 @@ async function loadItems(params = {}) {
   const container = document.getElementById('items-grid');
   const resultsCount = document.getElementById('results-count');
 
+  console.log('[Catalog] loadItems called with params:', params);
+
   // Show loading state
   setLoading(true);
 
@@ -377,7 +379,7 @@ async function loadItems(params = {}) {
   const retryHandler = () => loadItems(params);
 
   try {
-    console.log('[Catalog] Loading items with params:', params);
+    console.log('[Catalog] Calling itemService.getItems...');
 
     // Build API params
     const apiParams = {
@@ -397,14 +399,23 @@ async function loadItems(params = {}) {
       apiParams.is_available = false;
     }
 
-    const response = await itemService.getItems(apiParams);
-    console.log('[Catalog] API Response:', response);
+    console.log('[Catalog] apiParams:', apiParams);
 
-    if (response.success) {
+    const response = await itemService.getItems(apiParams);
+    console.log('[Catalog] API Response received:', response);
+    console.log('[Catalog] response.success:', response?.success);
+    console.log('[Catalog] response.data:', response?.data);
+    console.log('[Catalog] response.data type:', typeof response?.data);
+    console.log('[Catalog] Array.isArray(response.data):', Array.isArray(response?.data));
+
+    if (response && response.success) {
       let items = response.data || [];
+      console.log('[Catalog] Initial items:', items);
+      console.log('[Catalog] items.length:', items?.length);
 
       // Handle nested data structure from API
       if (items.items) {
+        console.log('[Catalog] Handling nested data structure...');
         items = items.items;
       }
 
@@ -421,14 +432,22 @@ async function loadItems(params = {}) {
         });
       }
 
+      console.log('[Catalog] Final items to render:', items);
+
       // Update results count
       const total = response.meta?.total || items.length;
       resultsCount.textContent = `Menampilkan ${items.length} dari ${total} item`;
+      console.log('[Catalog] Results count updated');
 
-      if (items.length > 0) {
-        container.innerHTML = items.map(item => renderItemCard(item)).join('');
+      if (items && items.length > 0) {
+        console.log('[Catalog] Rendering', items.length, 'items');
+        const html = items.map(item => renderItemCard(item)).join('');
+        console.log('[Catalog] Generated HTML length:', html.length);
+        container.innerHTML = html;
         renderPagination(response.meta, params);
+        console.log('[Catalog] Items rendered successfully');
       } else {
+        console.log('[Catalog] No items to display, showing empty state');
         container.innerHTML = `
           <div class="empty-state" style="grid-column: 1 / -1;">
             <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="empty-state-icon">
@@ -443,6 +462,7 @@ async function loadItems(params = {}) {
         document.getElementById('pagination').innerHTML = '';
       }
     } else {
+      console.log('[Catalog] API call failed or response invalid');
       resultsCount.textContent = 'Gagal memuat item';
       container.innerHTML = `
         <div class="empty-state" style="grid-column: 1 / -1;">
@@ -453,6 +473,7 @@ async function loadItems(params = {}) {
           </svg>
           <h3 class="empty-state-title">Gagal Memuat Data</h3>
           <p class="empty-state-description">Terjadi kesalahan saat mengambil data item</p>
+          <p class="empty-state-description" style="font-size: 12px; color: #666;">Error: ${response?.error?.message || 'Unknown error'}</p>
           <button class="btn btn-primary" onclick="window.catalogRetryLoad()">Coba Lagi</button>
         </div>
       `;
@@ -460,6 +481,7 @@ async function loadItems(params = {}) {
     }
   } catch (error) {
     console.error('[Catalog] Failed to load items:', error);
+    console.error('[Catalog] Error stack:', error.stack);
     resultsCount.textContent = 'Error: ' + error.message;
     container.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
@@ -470,6 +492,7 @@ async function loadItems(params = {}) {
         </svg>
         <h3 class="empty-state-title">Koneksi Gagal</h3>
         <p class="empty-state-description">Tidak dapat terhubung ke server. Periksa koneksi internet Anda.</p>
+        <p class="empty-state-description" style="font-size: 12px; color: #666;">${error.message}</p>
         <button class="btn btn-primary" onclick="window.catalogRetryLoad()">Coba Lagi</button>
       </div>
     `;

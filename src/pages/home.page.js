@@ -158,6 +158,8 @@ async function loadFeaturedItems() {
   const container = document.getElementById('featured-items');
   const loadingIndicator = document.getElementById('featured-loading');
 
+  console.log('[Home] loadFeaturedItems called');
+
   try {
     console.log('[Home] Loading featured items...');
 
@@ -167,21 +169,33 @@ async function loadFeaturedItems() {
 
     const response = await itemService.getItems({ limit: 4 });
     console.log('[Home] Featured items response:', response);
+    console.log('[Home] response.success:', response?.success);
+    console.log('[Home] response.data:', response?.data);
+    console.log('[Home] Array.isArray(response.data):', Array.isArray(response?.data));
 
     // Hide loading indicator
     loadingIndicator.style.display = 'none';
 
-    if (response.success) {
+    if (response && response.success) {
       let items = response.data || [];
+      console.log('[Home] Initial items:', items);
+      console.log('[Home] items.length:', items?.length);
 
       // Handle nested data structure
       if (items.items) {
         items = items.items;
       }
 
-      if (items.length > 0) {
-        container.innerHTML = items.map(item => renderItemCard(item)).join('');
+      console.log('[Home] Final items to render:', items);
+
+      if (items && items.length > 0) {
+        console.log('[Home] Rendering', items.length, 'items');
+        const html = items.map(item => renderItemCard(item)).join('');
+        console.log('[Home] Generated HTML length:', html.length);
+        container.innerHTML = html;
+        console.log('[Home] Items rendered successfully');
       } else {
+        console.log('[Home] No items to display, showing empty state');
         container.innerHTML = `
           <div class="empty-state" style="grid-column: 1 / -1;">
             <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -195,10 +209,12 @@ async function loadFeaturedItems() {
         `;
       }
     } else {
-      throw new Error(response.error?.message || 'Gagal memuat data');
+      console.log('[Home] API call failed');
+      throw new Error(response?.error?.message || 'Gagal memuat data');
     }
   } catch (error) {
     console.error('[Home] Failed to load featured items:', error);
+    console.error('[Home] Error stack:', error.stack);
 
     // Hide loading indicator
     if (loadingIndicator) {

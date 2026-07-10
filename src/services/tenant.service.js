@@ -1,16 +1,22 @@
 /**
  * Tenant Service
+ * Uses kode tenant (not tenant ID)
  */
-import apiClient from '../api/client.js';
 import Storage from '../utils/storage.js';
 
 class TenantService {
   /**
-   * Get tenant by code (public endpoint)
+   * Get API base URL
    */
-  async getTenantByCode(code) {
-    // First, look up tenant ID by kode using the public API
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'}/public/tenants/kode/${code}`);
+  getApiBaseUrl() {
+    return import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+  }
+
+  /**
+   * Get tenant by kode (public endpoint)
+   */
+  async getTenantByKode(kode) {
+    const response = await fetch(`${this.getApiBaseUrl()}/public/tenants/kode/${kode}`);
 
     if (response.ok) {
       const data = await response.json();
@@ -34,8 +40,7 @@ class TenantService {
    */
   setCurrentTenant(tenant) {
     Storage.set('tenant', tenant);
-    Storage.set('tenant_id', tenant.id);           // UUID for API header
-    Storage.set('tenant_code', tenant.kodeTenant); // Kode tenant for reference
+    Storage.set('tenant_code', tenant.kodeTenant); // Kode tenant
   }
 
   /**
@@ -52,7 +57,7 @@ class TenantService {
     if (tenantCode) {
       try {
         console.log('[TenantService] Fetching tenant from API...');
-        const response = await this.getTenantByCode(tenantCode);
+        const response = await this.getTenantByKode(tenantCode);
         if (response.success) {
           console.log('[TenantService] Tenant loaded:', response.data.name);
           this.setCurrentTenant(response.data);
@@ -69,7 +74,7 @@ class TenantService {
     if (defaultTenant && !tenantCode) {
       try {
         console.log('[TenantService] Fetching default tenant...');
-        const response = await this.getTenantByCode(defaultTenant);
+        const response = await this.getTenantByKode(defaultTenant);
         if (response.success) {
           console.log('[TenantService] Default tenant loaded:', response.data.name);
           this.setCurrentTenant(response.data);

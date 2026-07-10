@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Frontend Mimic Test</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    .debug { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 4px; }
+    .success { border-left: 4px solid green; }
+    .error { border-left: 4px solid red; }
+    pre { background: #333; color: #fff; padding: 15px; border-radius: 4px; overflow: auto; }
+    #items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-top: 20px; }
+    .item-card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; }
+    .item-card h3 { margin: 0 0 8px 0; }
+    .item-card p { margin: 4px 0; color: #666; }
+  </style>
+</head>
+<body>
+  <h1>Frontend Mimic Test</h1>
+  
+  <div id="debug-output"></div>
+  <div id="items-grid"></div>
+  
+  <script type="module">
+    const debug = document.getElementById('debug-output');
+    const itemsGrid = document.getElementById('items-grid');
+    
+    function log(message, data = null) {
+      const div = document.createElement('div');
+      div.className = 'debug';
+      div.innerHTML = `<strong>[LOG]</strong> ${message}${data ? ': ' + JSON.stringify(data) : ''}`;
+      debug.appendChild(div);
+      console.log(message, data);
+    }
+    
+    function logSuccess(message, data = null) {
+      const div = document.createElement('div');
+      div.className = 'debug success';
+      div.innerHTML = `<strong>[SUCCESS]</strong> ${message}${data ? ': ' + JSON.stringify(data) : ''}`;
+      debug.appendChild(div);
+    }
+    
+    function logError(message, error) {
+      const div = document.createElement('div');
+      div.className = 'debug error';
+      div.innerHTML = `<strong>[ERROR]</strong> ${message}: ${error}`;
+      debug.appendChild(div);
+      console.error(message, error);
+    }
+    
+    // Simulate Vite env (what Vite replaces at build time)
+    const API_BASE_URL = 'http://localhost:3000/api/v1';
+    const DEFAULT_TENANT = 'MAJU1234';
+    
+    // Simulate Storage.get('tenant_code')
+    function getTenantCode() {
+      // In real app, this reads from localStorage with prefix 'wb_'
+      const stored = localStorage.getItem('wb_tenant_code');
+      log('Storage.get("tenant_code")', stored);
+      return stored || DEFAULT_TENANT;
+    }
+    
+    // This mimics apiClient.get()
+    async function apiGet(endpoint, params) {
+      const filteredParams = Object.entries(params)
+        .filter(([_, v]) => v !== null && v !== undefined && v !== '')
+        .reduce((acc, [k, v]) => ({ ...acc, [k]: v }), {});
+      
+      const queryString = new URLSearchParams(filteredParams).toString();
+      const url = queryString ? `${API_BASE_URL}${endpoint}?${queryString}` : `${API_BASE_URL}${endpoint}`;
+      
+      log('apiGet URL', url);
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Request failed');
+      }
+      
+      return data;
+    }
+    
+    // This mimics itemService.getItems()
+    async function getItems(params = {}) {
+      const tenantCode = getTenantCode();
+      log('getItems tenantCode', tenantCode);
+      
+      const apiParams = {
+        kode: tenantCode,
+        page: params.page || 1,
+        limit: params.limit || 12,
+      };
+      
+      if (params.type) apiParams.type = params.type;
+      if (params.search) apiParams.search = params.search;
+      
+      log('getItems apiParams', apiParams);
+      
+      return apiGet('/public/items', apiParams);
+    }
+    
+    // Run the test
+    async function runTest() {
+      log('Starting test...');
+      log('VITE_API_BASE_URL', API_BASE_URL);
+      log('VITE_DEFAULT_TENANT', DEFAULT_TENANT);
+      
+      try {
+        log('Calling getItems...');
+        const response = await getItems({ limit: 4 });
+        
+        logSuccess('API Response received', {
+          success: response.success,
+          dataLength: Array.isArray(response.data) ? response.data.length : 'N/A',
+          meta: response.meta
+        });
+        
+        if (response.success && response.data) {
+          logSuccess('Rendering items...', response.data.length + ' items');
+          
+          response.data.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'item-card';
+            card.innerHTML = `
+              <h3>${item.name}</h3>
+              <p>Type: ${item.type}</p>
+              <p>Price: Rp ${item.price.toLocaleString('id-ID')}</p>
+              <p>Status: ${item.isAvailable ? 'Available' : 'Not Available'}</p>
+            `;
+            itemsGrid.appendChild(card);
+          });
+          
+          logSuccess('Test completed successfully!');
+        } else {
+          logError('API returned unsuccessful response', response);
+        }
+      } catch (error) {
+        logError('Test failed', error.message);
+      }
+    }
+    
+    runTest();
+  </script>
+</body>
+</html>

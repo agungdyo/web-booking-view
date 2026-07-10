@@ -1,137 +1,100 @@
 /**
  * Item Service - API Integration for Items
- * Supports both public and authenticated endpoints
+ * Uses public endpoints with kode tenant parameter
  */
-import apiClient from '../api/client.js';
 import Storage from '../utils/storage.js';
 
 class ItemService {
   /**
-   * Get tenant code from storage
+   * Get kode tenant from storage or env
    */
-  getTenantCode() {
-    return Storage.get('tenant_code') || import.meta.env.VITE_DEFAULT_TENANT;
-  }
-
-  /**
-   * Get tenant ID from storage
-   */
-  getTenantId() {
-    return Storage.get('tenant_id');
-  }
-
-  /**
-   * Get all items using authenticated endpoint
-   * GET /items - List items with tenant isolation
-   * @param {Object} params - Query parameters
-   */
-  async getItems(params = {}) {
-    const tenantCode = this.getTenantCode();
-    console.log('[ItemService] Getting items, tenantCode:', tenantCode);
-
-    return apiClient.get('/items', {
-      kode: tenantCode,
-      page: params.page || 1,
-      limit: params.limit || 12,
-      type: params.type || null,
-      search: params.search || null,
-      is_available: params.is_available !== undefined ? params.is_available : null,
-    });
-  }
-
-  /**
-   * Get item types using authenticated endpoint
-   * GET /items/types - List item types with counts
-   */
-  async getItemTypes() {
-    const tenantCode = this.getTenantCode();
-    console.log('[ItemService] Getting item types, tenantCode:', tenantCode);
-
-    return apiClient.get('/items/types', {
-      kode: tenantCode,
-    });
-  }
-
-  /**
-   * Get item by ID using authenticated endpoint
-   * GET /items/:id
-   */
-  async getItem(id) {
-    const tenantCode = this.getTenantCode();
-
-    return apiClient.get(`/items/${id}`, {
-      kode: tenantCode,
-    });
-  }
-
-  /**
-   * Check item availability using authenticated endpoint
-   * GET /items/:id/availability
-   */
-  async checkAvailability(itemId, startDate, endDate, quantity = 1) {
-    const tenantCode = this.getTenantCode();
-
-    return apiClient.get(`/items/${itemId}/availability`, {
-      kode: tenantCode,
-      start_date: startDate,
-      end_date: endDate,
-      quantity,
-    });
-  }
-
-  /**
-   * Get featured items (public endpoint)
-   */
-  async getFeaturedItems(limit = 4) {
-    const tenantCode = this.getTenantCode();
-    console.log('[ItemService] Getting featured items, tenantCode:', tenantCode);
-
-    const result = await apiClient.get('/items', {
-      kode: tenantCode,
-      limit,
-    });
-    console.log('[ItemService] Featured items result:', result);
+  getKodeTenant() {
+    const fromStorage = Storage.get('tenant_code');
+    const fromEnv = import.meta.env.VITE_DEFAULT_TENANT;
+    const result = fromStorage || fromEnv;
+    console.log('[ItemService] getKodeTenant:', { fromStorage, fromEnv, result });
     return result;
   }
 
   /**
-   * Public endpoint: Get all items
-   * GET /public/items
+   * Get all items using public endpoint
+   * GET /public/items - List items with tenant isolation via kode param
    */
-  async getPublicItems(params = {}) {
-    const tenantCode = this.getTenantCode();
+  async getItems(params = {}) {
+    const kodeTenant = this.getKodeTenant();
+    console.log('[ItemService] Getting items, kodeTenant:', kodeTenant);
 
-    return apiClient.get('/public/items', {
-      kode: tenantCode,
+    const apiParams = {
+      kode: kodeTenant,
       page: params.page || 1,
       limit: params.limit || 12,
-      type: params.type || null,
-      search: params.search || null,
-    });
+    };
+
+    if (params.type) apiParams.type = params.type;
+    if (params.search) apiParams.search = params.search;
+    if (params.is_available !== undefined && params.is_available !== null) {
+      apiParams.is_available = params.is_available;
+    }
+
+    console.log('[ItemService] API params:', apiParams);
+
+    // Direct fetch for public endpoint
+    const queryString = new URLSearchParams(
+      Object.entries(apiParams).filter(([_, v]) => v !== null && v !== undefined && v !== '')
+    ).toString();
+
+    const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'}/public/items?${queryString}`;
+    console.log('[ItemService] URL:', url);
+
+    const response = await fetch(url);
+    const data = await response.json();
+    console.log('[ItemService] Raw response:', data);
+
+    return data;
   }
 
   /**
-   * Public endpoint: Get item types
+   * Get item types
    * GET /public/items/types
    */
-  async getPublicItemTypes() {
-    const tenantCode = this.getTenantCode();
+  async getItemTypes() {
+    const kodeTenant = this.getKodeTenant();
+    console.log('[ItemService] Getting item types, kodeTenant:', kodeTenant);
 
-    return apiClient.get('/public/items/types', {
-      kode: tenantCode,
-    });
+    const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'}/public/items/types?kode=${kodeTenant}`;
+    const response = await fetch(url);
+    return response.json();
   }
 
   /**
-   * Public endpoint: Get item by ID
+   * Get item by ID
    * GET /public/items/:id
    */
-  async getPublicItem(id) {
-    const tenantCode = this.getTenantCode();
+  async getItem(id) {
+    const kodeTenant = this.getKodeTenant();
 
-    return apiClient.get(`/public/items/${id}`, {
-      kode: tenantCode,
-    });
+    const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'}/public/items/${id}?kode=${kodeTenant}`;
+    const response = await fetch(url);
+    return response.json();
+  }
+
+  /**
+   * Check item availability
+   * GET /public/items/:id/availability
+   */
+  async checkAvailability(itemId, startDate, endDate, quantity = 1) {
+    const kodeTenant = this.getKodeTenant();
+
+    const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'}/public/items/${itemId}/availability?kode=${kodeTenant}&start_date=${startDate}&end_date=${endDate}&quantity=${quantity}`;
+    const response = await fetch(url);
+    return response.json();
+  }
+
+  /**
+   * Get featured items
+   */
+  async getFeaturedItems(limit = 4) {
+    return this.getItems({ limit });
   }
 }
 

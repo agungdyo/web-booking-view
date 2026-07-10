@@ -3,51 +3,75 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Debug Test</title>
-  <style>
-    body { font-family: sans-serif; padding: 20px; }
-    .success { color: green; }
-    .error { color: red; }
-    pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
-    button { padding: 10px 20px; cursor: pointer; }
-  </style>
+  <title>Debug API Test</title>
 </head>
 <body>
   <h1>API Debug Test</h1>
-  <button onclick="testAPI()">Test API</button>
-  <div id="results"></div>
-
-  <script>
-    const API_BASE = 'http://localhost:3000/api/v1';
-
-    async function testAPI() {
-      const results = document.getElementById('results');
-      results.innerHTML = '<p>Testing...</p>';
-
-      try {
-        // Test 1: Get Tenant
-        results.innerHTML += '<h3>1. Get Tenant</h3>';
-        const tenantRes = await fetch(`${API_BASE}/public/tenants/kode/MAJU1234`);
-        const tenantData = await tenantRes.json();
-        results.innerHTML += `<p class="${tenantData.success ? 'success' : 'error'}">Status: ${tenantData.success}</p>`;
-        results.innerHTML += `<p>Tenant: ${tenantData.data?.name || 'N/A'}</p>`;
-        results.innerHTML += `<pre>${JSON.stringify(tenantData, null, 2)}</pre>`;
-
-        // Test 2: Get Items
-        results.innerHTML += '<h3>2. Get Items</h3>';
-        const itemsRes = await fetch(`${API_BASE}/public/items?kode=MAJU1234&limit=3`);
-        const itemsData = await itemsRes.json();
-        results.innerHTML += `<p class="${itemsData.success ? 'success' : 'error'}">Status: ${itemsData.success}</p>`;
-        results.innerHTML += `<p>Items count: ${itemsData.data?.length || 0}</p>`;
-        results.innerHTML += `<pre>${JSON.stringify(itemsData, null, 2)}</pre>`;
-
-      } catch (error) {
-        results.innerHTML += `<p class="error">Error: ${error.message}</p>`;
-      }
-    }
-
-    // Auto test on load
-    window.onload = testAPI;
+  <div id="result"></div>
+  
+  <script type="module">
+    // Get env variables
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+    const DEFAULT_TENANT = import.meta.env.VITE_DEFAULT_TENANT || 'MAJU1234';
+    
+    document.getElementById('result').innerHTML = `
+      <p>API_BASE_URL: ${API_BASE_URL}</p>
+      <p>DEFAULT_TENANT: ${DEFAULT_TENANT}</p>
+    `;
+    
+    // Test API call
+    console.log('Testing API call...');
+    console.log('API_BASE_URL:', API_BASE_URL);
+    console.log('DEFAULT_TENANT:', DEFAULT_TENANT);
+    
+    const url = `${API_BASE_URL}/public/items?kode=${DEFAULT_TENANT}&page=1&limit=4`;
+    console.log('Full URL:', url);
+    
+    fetch(url)
+      .then(response => {
+        console.log('Response status:', response.status);
+        return response.json();
+      })
+      .then(data => {
+        console.log('API Response:', data);
+        document.getElementById('result').innerHTML += `
+          <h2>API Response:</h2>
+          <pre>${JSON.stringify(data, null, 2)}</pre>
+          <p>Items count: ${Array.isArray(data.data) ? data.data.length : 'N/A'}</p>
+        `;
+        
+        // Render items
+        if (data.success && data.data && data.data.length > 0) {
+          const container = document.createElement('div');
+          container.style.display = 'grid';
+          container.style.gridTemplateColumns = 'repeat(2, 1fr)';
+          container.style.gap = '16px';
+          container.style.marginTop = '20px';
+          
+          data.data.forEach(item => {
+            const card = document.createElement('div');
+            card.style.border = '1px solid #ddd';
+            card.style.padding = '16px';
+            card.style.borderRadius = '8px';
+            card.innerHTML = `
+              <h3>${item.name}</h3>
+              <p>Type: ${item.type}</p>
+              <p>Price: ${item.price}</p>
+              <p>Available: ${item.isAvailable ? 'Yes' : 'No'}</p>
+            `;
+            container.appendChild(card);
+          });
+          
+          document.body.appendChild(container);
+        }
+      })
+      .catch(error => {
+        console.error('API Error:', error);
+        document.getElementById('result').innerHTML += `
+          <h2 style="color: red;">API Error:</h2>
+          <pre>${error.message}</pre>
+        `;
+      });
   </script>
 </body>
 </html>

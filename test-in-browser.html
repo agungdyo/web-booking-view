@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Browser API Test</title>
+</head>
+<body>
+  <h1>Browser API Test</h1>
+  <div id="output"></div>
+  
+  <script type="module">
+    const output = document.getElementById('output');
+    
+    function log(msg) {
+      output.innerHTML += '<p>' + msg + '</p>';
+      console.log(msg);
+    }
+    
+    function logData(label, data) {
+      output.innerHTML += '<pre>' + label + ': ' + JSON.stringify(data, null, 2) + '</pre>';
+      console.log(label, data);
+    }
+    
+    log('Starting test...');
+    
+    // Test 1: Check localStorage
+    log('Checking localStorage...');
+    const storedCode = localStorage.getItem('wb_tenant_code');
+    const storedId = localStorage.getItem('wb_tenant_id');
+    log('wb_tenant_code: ' + storedCode);
+    log('wb_tenant_id: ' + storedId);
+    
+    // Test 2: Call tenant API
+    log('<br>Calling tenant API...');
+    const tenantUrl = 'http://localhost:3000/api/v1/public/tenants/kode/' + (storedCode || 'MAJU1234');
+    log('URL: ' + tenantUrl);
+    
+    fetch(tenantUrl)
+      .then(res => res.json())
+      .then(data => {
+        logData('Tenant response', data);
+        
+        // Test 3: Call items API with the tenant code from API
+        if (data.success && data.data) {
+          const kode = data.data.kodeTenant;
+          log('<br>Calling items API with kode: ' + kode);
+          
+          const itemsUrl = 'http://localhost:3000/api/v1/public/items?kode=' + kode + '&page=1&limit=4';
+          log('URL: ' + itemsUrl);
+          
+          return fetch(itemsUrl);
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        logData('Items response', data);
+      })
+      .catch(err => {
+        log('ERROR: ' + err.message);
+      });
+  </script>
+</body>
+</html>

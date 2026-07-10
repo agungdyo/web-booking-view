@@ -1,66 +1,76 @@
 /**
  * Authentication Service
- * Handles user authentication and token management
+ * Handles customer authentication and token management
+ * Uses kode tenant (not tenant ID)
  */
-import apiClient from '../api/client.js';
 import Storage from '../utils/storage.js';
 
 class AuthService {
   /**
-   * Login with email and password
+   * Get API base URL
+   */
+  getApiBaseUrl() {
+    return import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+  }
+
+  /**
+   * Get kode tenant from storage
+   */
+  getKodeTenant() {
+    return Storage.get('tenant_code') || import.meta.env.VITE_DEFAULT_TENANT;
+  }
+
+  /**
+   * Login customer with email and password
+   * Uses /customers/login endpoint with kode query parameter
    * @param {string} email - User email
    * @param {string} password - User password
-   * @param {string} kodeTenant - Optional tenant code for login
    */
-  async login(email, password, kodeTenant = null) {
-    console.log('[AuthService] Login attempt:', email);
+  async login(email, password) {
+    console.log('[AuthService] Customer login attempt:', email);
 
-    const payload = {
-      email,
-      password,
-    };
+    const kodeTenant = this.getKodeTenant();
+    console.log('[AuthService] Using kode tenant:', kodeTenant);
 
-    // Add tenant code if provided
-    // Note: The backend login doesn't require kodeTenant (SSO style)
-    // But we store it for reference
-    const tenantCode = kodeTenant || import.meta.env.VITE_DEFAULT_TENANT;
-
-    const response = await apiClient.post('/auth/login', payload);
-
-    if (response.success) {
-      const { accessToken, refreshToken, user } = response.data;
-
-      // Store customer data
-      const customerData = {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        token: accessToken,
-        refresh_token: refreshToken,
-        tenant_id: user.tenant_id || Storage.get('tenant_id'),
-        kodeTenant: user.kodeTenant || tenantCode,
-      };
-
-      Storage.set('customer', customerData);
-
-      // Also store in localStorage for direct access
-      localStorage.setItem('customer', JSON.stringify(customerData));
-
-      // Store tenant info
-      if (user.tenant_id) {
-        Storage.set('tenant_id', user.tenant_id);
-      }
-      if (user.kodeTenant) {
-        Storage.set('tenant_code', user.kodeTenant);
-      } else if (tenantCode) {
-        Storage.set('tenant_code', tenantCode);
-      }
-
-      console.log('[AuthService] Login successful:', user.name);
+    if (!kodeTenant) {
+      throw new Error('Tenant not initialized. Please refresh the page.');
     }
 
-    return response;
+    // Use fetch with kode query parameter
+    const response = await fetch(`${this.getApiBaseUrl()}/customers/login?kode=${kodeTenant}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.error?.message || 'Login failed');
+    }
+
+    const { customer, token } = data.data;
+
+    // Store customer data
+    const customerData = {
+      id: customer.id,
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone,
+      token: token,
+      kodeTenant: customer.kodeTenant,
+    };
+
+    Storage.set('customer', customerData);
+
+    // Also store in localStorage for direct access
+    localStorage.setItem('wb_customer', JSON.stringify(customerData));
+
+    console.log('[AuthService] Login successful:', customer.name);
+
+    return data;
   }
 
   /**
@@ -68,35 +78,47 @@ class AuthService {
    * Uses predefined credentials for demo purposes
    */
   async loginWithCredentials(email, password) {
-    const kodeTenant = import.meta.env.VITE_DEFAULT_TENANT;
-    return this.login(email, password, kodeTenant);
+    return this.login(email, password);
   }
 
   /**
    * Register new customer (public)
+   * @param {Object} data - Registration data { name, email, phone, password }
    */
   async register(data) {
+    console.log('[AuthService] Customer registration:', data.email);
+
+    const kodeTenant = this.getKodeTenant();
+
     const payload = {
       name: data.name,
       email: data.email,
-      phone: data.phone,
+      phone: data.phone || '',
       password: data.password,
     };
 
-    // Add tenant code if available
-    const tenantCode = Storage.get('tenant_code') || import.meta.env.VITE_DEFAULT_TENANT;
-    if (tenantCode) {
-      payload.kodeTenant = tenantCode;
+    if (kodeTenant) {
+      payload.kodeTenant = kodeTenant;
     }
 
-    const response = await apiClient.post('/customers/public', payload);
+    const response = await fetch(`${this.getApiBaseUrl()}/customers/public`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
 
-    if (response.success) {
-      // Auto login after registration
-      await this.login(data.email, data.password);
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error?.message || 'Registration failed');
     }
 
-    return response;
+    // Auto login after successful registration
+    await this.login(data.email, data.password);
+
+    return result;
   }
 
   /**
@@ -109,7 +131,7 @@ class AuthService {
 
     // Fallback to localStorage
     try {
-      const local = localStorage.getItem('customer');
+      const local = localStorage.getItem('wb_customer');
       if (local) return JSON.parse(local);
     } catch (e) {
       // Ignore
@@ -131,12 +153,12 @@ class AuthService {
    */
   logout() {
     Storage.remove('customer');
-    localStorage.remove('customer');
+    localStorage.remove('wb_customer');
     console.log('[AuthService] Logged out');
   }
 
   /**
-   * Refresh token
+   * Refresh token (for future use)
    */
   async refreshToken() {
     const customer = this.getCurrentCustomer();
@@ -144,38 +166,67 @@ class AuthService {
       throw new Error('No refresh token');
     }
 
-    const response = await apiClient.post('/auth/refresh-token', {
-      refresh_token: customer.refresh_token,
+    const response = await fetch(`${this.getApiBaseUrl()}/auth/refresh-token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken: customer.refresh_token })
     });
 
-    if (response.success) {
+    const data = await response.json();
+
+    if (data.success) {
       const updated = {
         ...customer,
-        token: response.data.token,
-        refresh_token: response.data.refresh_token || customer.refresh_token,
+        token: data.data.token,
+        refresh_token: data.data.refreshToken || customer.refresh_token,
       };
       Storage.set('customer', updated);
-      localStorage.setItem('customer', JSON.stringify(updated));
+      localStorage.setItem('wb_customer', JSON.stringify(updated));
     }
 
-    return response;
+    return data;
   }
 
   /**
-   * Get current user info
+   * Get current customer profile
    */
   async getMe() {
-    return apiClient.getAuth('/auth/me');
+    const customer = this.getCurrentCustomer();
+    if (!customer?.token) {
+      throw new Error('Not logged in');
+    }
+
+    const response = await fetch(`${this.getApiBaseUrl()}/customers/me`, {
+      headers: {
+        'Authorization': `Bearer ${customer.token}`,
+        'kode': customer.kodeTenant
+      }
+    });
+
+    return response.json();
   }
 
   /**
    * Change password
    */
   async changePassword(currentPassword, newPassword) {
-    return apiClient.postAuth('/auth/change-password', {
-      currentPassword,
-      newPassword,
+    const customer = this.getCurrentCustomer();
+    if (!customer?.token) {
+      throw new Error('Not logged in');
+    }
+
+    const response = await fetch(`${this.getApiBaseUrl()}/auth/change-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${customer.token}`
+      },
+      body: JSON.stringify({ currentPassword, newPassword })
     });
+
+    return response.json();
   }
 }
 

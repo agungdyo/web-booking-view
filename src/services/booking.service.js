@@ -1,10 +1,44 @@
 /**
  * Booking Service
+ * Uses kode tenant (not tenant ID)
  */
-import apiClient from '../api/client.js';
 import Storage from '../utils/storage.js';
 
 class BookingService {
+  /**
+   * Get API base URL
+   */
+  getApiBaseUrl() {
+    return import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+  }
+
+  /**
+   * Get kode tenant
+   */
+  getKodeTenant() {
+    return Storage.get('tenant_code') || import.meta.env.VITE_DEFAULT_TENANT;
+  }
+
+  /**
+   * Get auth headers with customer token and kode tenant
+   */
+  getAuthHeaders() {
+    const customer = Storage.get('customer');
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+
+    if (customer?.token) {
+      headers['Authorization'] = `Bearer ${customer.token}`;
+    }
+
+    if (customer?.kodeTenant) {
+      headers['kode'] = customer.kodeTenant;
+    }
+
+    return headers;
+  }
+
   /**
    * Create new booking
    */
@@ -22,14 +56,24 @@ class BookingService {
       discount_amount: data.discount_amount || 0,
     };
 
-    return apiClient.post('/bookings', payload);
+    const response = await fetch(`${this.getApiBaseUrl()}/bookings`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(payload)
+    });
+
+    return response.json();
   }
 
   /**
    * Get booking by ID
    */
   async getBooking(id) {
-    return apiClient.get(`/bookings/${id}`);
+    const response = await fetch(`${this.getApiBaseUrl()}/bookings/${id}`, {
+      headers: this.getAuthHeaders()
+    });
+
+    return response.json();
   }
 
   /**
@@ -41,17 +85,31 @@ class BookingService {
       throw new Error('Not logged in');
     }
 
-    return apiClient.get(`/customers/${customer.id}/bookings`, {
+    const queryParams = new URLSearchParams({
       page: params.page || 1,
       limit: params.limit || 10,
     });
+
+    const response = await fetch(`${this.getApiBaseUrl()}/customers/${customer.id}/bookings?${queryParams}`, {
+      headers: this.getAuthHeaders()
+    });
+
+    return response.json();
   }
 
   /**
    * Track booking by code (public)
    */
   async trackBooking(code) {
-    return apiClient.get(`/bookings/track/${code}`);
+    const kodeTenant = this.getKodeTenant();
+
+    const response = await fetch(`${this.getApiBaseUrl()}/bookings/track/${code}?kode=${kodeTenant}`, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    return response.json();
   }
 
   /**
@@ -68,7 +126,25 @@ class BookingService {
       tax_rate: taxRate,
     };
 
-    return apiClient.post('/utils/calculate-price', payload);
+    const response = await fetch(`${this.getApiBaseUrl()}/utils/calculate-price`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(payload)
+    });
+
+    return response.json();
+  }
+
+  /**
+   * Cancel booking
+   */
+  async cancelBooking(id) {
+    const response = await fetch(`${this.getApiBaseUrl()}/bookings/${id}`, {
+      method: 'DELETE',
+      headers: this.getAuthHeaders()
+    });
+
+    return response.json();
   }
 }
 

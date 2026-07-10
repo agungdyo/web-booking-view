@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Direct API Test</title>
+</head>
+<body>
+  <h1>Direct API Test</h1>
+  <div id="output"></div>
+  
+  <script type="module">
+    // Simulate Vite env
+    const VITE_API_BASE_URL = 'http://localhost:3000/api/v1';
+    const VITE_DEFAULT_TENANT = 'MAJU1234';
+    
+    document.getElementById('output').innerHTML = '<p>Loading...</p>';
+    
+    // Build URL exactly like the frontend does
+    const endpoint = '/public/items';
+    const params = {
+      kode: VITE_DEFAULT_TENANT,
+      page: 1,
+      limit: 12
+    };
+    
+    // Filter out null/undefined values
+    const filteredParams = Object.entries(params)
+      .filter(([_, v]) => v !== null && v !== undefined && v !== '')
+      .reduce((acc, [k, v]) => ({ ...acc, [k]: v }), {});
+    
+    const queryString = new URLSearchParams(filteredParams).toString();
+    const fullUrl = `${VITE_API_BASE_URL}${endpoint}?${queryString}`;
+    
+    document.getElementById('output').innerHTML = `
+      <h2>Request Details</h2>
+      <p><strong>Endpoint:</strong> ${endpoint}</p>
+      <p><strong>Params:</strong> ${JSON.stringify(params)}</p>
+      <p><strong>Filtered Params:</strong> ${JSON.stringify(filteredParams)}</p>
+      <p><strong>Full URL:</strong> <a href="${fullUrl}" target="_blank">${fullUrl}</a></p>
+      <hr>
+      <h2>Response</h2>
+      <pre id="response">Loading...</pre>
+    `;
+    
+    // Make the request
+    fetch(fullUrl)
+      .then(res => {
+        document.getElementById('response').textContent += `\nStatus: ${res.status}`;
+        return res.json();
+      })
+      .then(data => {
+        document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+        
+        // Try to render items
+        if (data.success && data.data) {
+          const container = document.createElement('div');
+          container.style.display = 'grid';
+          container.style.gridTemplateColumns = 'repeat(auto-fill, minmax(250px, 1fr))';
+          container.style.gap = '16px';
+          container.style.marginTop = '20px';
+          
+          data.data.forEach(item => {
+            const card = document.createElement('div');
+            card.style.border = '1px solid #ddd';
+            card.style.borderRadius = '8px';
+            card.style.padding = '16px';
+            card.innerHTML = `
+              <h3>${item.name}</h3>
+              <p>Type: ${item.type}</p>
+              <p>Price: Rp ${item.price.toLocaleString('id-ID')}</p>
+              <p>Available: ${item.isAvailable ? 'Yes' : 'No'}</p>
+            `;
+            container.appendChild(card);
+          });
+          
+          document.body.appendChild(container);
+        }
+      })
+      .catch(err => {
+        document.getElementById('response').textContent = `Error: ${err.message}`;
+      });
+  </script>
+</body>
+</html>
