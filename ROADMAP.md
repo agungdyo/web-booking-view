@@ -150,13 +150,13 @@ Project frontend untuk customer booking yang mengintegrasikan API dari web-booki
 
 #### Day 1-2: Cart System
 ```
-[ ] Create cart component
+[x] Create cart component
     ├── selected items list
     ├── quantity controls
     ├── date selection
     ├── remove item
     └── clear cart
-[ ] Implement cart storage
+[x] Implement cart storage
     ├── save to localStorage
     ├── restore on page load
     └── sync across tabs

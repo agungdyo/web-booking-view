@@ -1,10 +1,21 @@
 /**
  * Storage Utility - LocalStorage wrapper
+ * Cross-tab sync compatible
  */
 
 const STORAGE_PREFIX = 'wb_';
 
 class Storage {
+  /**
+   * Get prefix for cross-tab sync
+   */
+  static get PREFIX() {
+    return STORAGE_PREFIX;
+  }
+  static get _prefix() {
+    return STORAGE_PREFIX;
+  }
+
   /**
    * Get item from localStorage
    */

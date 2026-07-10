@@ -27,6 +27,30 @@ class Cart {
     // Always ensure kode tenant is set
     cart.kodeTenant = Storage.get('tenant_code') || 'MAJU1234';
     Storage.set('cart', cart);
+
+    // Trigger storage event for cross-tab sync
+    // localStorage.setItem already triggers storage event in other tabs,
+    // but we dispatch one for current tab to keep UI in sync
+    this._dispatchSyncEvent();
+  }
+
+  /**
+   * Dispatch storage sync event for current tab
+   */
+  static _dispatchSyncEvent() {
+    // Only dispatch if not already dispatching (prevent loops)
+    if (this._dispatchingSync) return;
+    this._dispatchingSync = true;
+
+    // Use setTimeout to batch rapid updates
+    clearTimeout(this._syncTimeout);
+    this._syncTimeout = setTimeout(() => {
+      // Dispatch a custom event for components that need to react
+      window.dispatchEvent(new CustomEvent('cart:sync', {
+        detail: this.getCart()
+      }));
+      this._dispatchingSync = false;
+    }, 100);
   }
 
   /**
@@ -236,6 +260,15 @@ class Cart {
   }
 
   /**
+   * Confirm clear cart - shows confirmation first
+   */
+  static confirmClear() {
+    if (confirm('Apakah Anda yakin ingin mengosongkan keranjang?')) {
+      this.clear();
+    }
+  }
+
+  /**
    * Get item count
    */
   static getItemCount() {
@@ -323,6 +356,46 @@ class Cart {
    * Update UI - badge and drawer content
    */
   static updateUI() {
+    // Debounce UI updates for rapid changes
+    clearTimeout(this._uiUpdateTimeout);
+    this._uiUpdateTimeout = setTimeout(() => {
+      const cart = this.getCart();
+      const itemCount = this.getItemCount();
+
+      // Update cart badge if exists
+      const badge = document.getElementById('cart-badge');
+      if (badge) {
+        badge.textContent = itemCount;
+        badge.style.display = itemCount > 0 ? 'flex' : 'none';
+      }
+
+      // Update mobile cart indicator
+      const mobileBadge = document.getElementById('mobile-cart-badge');
+      if (mobileBadge) {
+        mobileBadge.textContent = itemCount;
+        mobileBadge.style.display = itemCount > 0 ? 'flex' : 'none';
+      }
+
+      // Update drawer content
+      const drawerBody = document.getElementById('cart-drawer-body');
+      if (drawerBody) {
+        drawerBody.innerHTML = this.renderDrawerContent();
+        this.attachDrawerEvents();
+      }
+
+      // Update drawer count in header
+      const drawerCount = document.getElementById('cart-drawer-count');
+      if (drawerCount) {
+        drawerCount.textContent = `${itemCount} item`;
+      }
+    }, 50);
+  }
+
+  /**
+   * Force immediate UI update (bypass debounce)
+   */
+  static updateUINow() {
+    clearTimeout(this._uiUpdateTimeout);
     const cart = this.getCart();
     const itemCount = this.getItemCount();
 
@@ -375,6 +448,15 @@ class Cart {
 
     return `
       <div class="cart-content">
+        <!-- Cart Header with Clear Button -->
+        <div class="cart-header">
+          <span class="cart-item-count">${cart.items.length} item${cart.items.length > 1 ? 's' : ''}</span>
+          <button class="cart-clear-btn" onclick="Cart.confirmClear()" title="Kosongkan keranjang">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            Kosongkan
+          </button>
+        </div>
+
         <!-- Items List -->
         <div class="cart-items">
           ${cart.items.map(item => this._renderCartItem(item)).join('')}
@@ -649,10 +731,79 @@ class Cart {
       document.body.insertAdjacentHTML('beforeend', this.renderDrawerHTML());
     }
 
+    // Setup cross-tab sync
+    this.setupCrossTabSync();
+
     // Update UI
     this.updateUI();
 
     console.log('[Cart] Initialized with kode tenant:', kodeTenant || 'MAJU1234');
+  }
+
+  /**
+   * Setup cross-tab synchronization using storage event
+   * Listens for changes from other tabs and updates UI accordingly
+   */
+  static setupCrossTabSync() {
+    // Remove any existing listener to prevent duplicates
+    if (this._storageListener) {
+      window.removeEventListener('storage', this._storageListener);
+    }
+
+    // Create listener for storage changes from other tabs
+    this._storageListener = (event) => {
+      // Check if cart storage was changed in another tab
+      if (event.key === Storage._prefix + 'cart') {
+        console.log('[Cart] Detected cart change from another tab:', event);
+
+        // Parse old and new values
+        let oldCount = 0;
+        let newCount = 0;
+        try {
+          const oldCart = event.oldValue ? JSON.parse(event.oldValue) : null;
+          oldCount = oldCart?.items?.length || 0;
+          const newCart = event.newValue ? JSON.parse(event.newValue) : null;
+          newCount = newCart?.items?.length || 0;
+        } catch (e) {
+          // Ignore parse errors
+        }
+
+        // Immediate UI update for cross-tab changes
+        this.updateUINow();
+
+        // Show notification if cart was cleared in another tab
+        if (newCount === 0 && oldCount > 0) {
+          Toast.info('Keranjang dikosongkan dari tab lain');
+          this.closeDrawer();
+        } else if (newCount < oldCount) {
+          // Items were removed in another tab
+          Toast.info('Item dihapus dari keranjang di tab lain');
+        } else if (newCount > oldCount) {
+          // Items were added in another tab
+          Toast.info(`${newCount - oldCount} item ditambahkan ke keranjang di tab lain`);
+        }
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('storage', this._storageListener);
+
+    // Also listen for internal sync events
+    window.addEventListener('cart:sync', (event) => {
+      this.updateUINow();
+    });
+
+    console.log('[Cart] Cross-tab sync enabled');
+  }
+
+  /**
+   * Cleanup cross-tab sync listener
+   */
+  static destroy() {
+    if (this._storageListener) {
+      window.removeEventListener('storage', this._storageListener);
+      this._storageListener = null;
+    }
   }
 }
 
