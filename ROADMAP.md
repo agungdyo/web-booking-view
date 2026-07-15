@@ -160,23 +160,23 @@ Project frontend untuk customer booking yang mengintegrasikan API dari web-booki
     ├── save to localStorage
     ├── restore on page load
     └── sync across tabs
-[ ] Create cart drawer/modal
+[x] Create cart drawer/modal
 ```
 
 #### Day 3-4: Booking Form
 ```
-[ ] Create booking page
+[x] Create booking page
     ├── customer info form
     ├── date confirmation
     ├── item list summary
     ├── price breakdown
     ├── notes textarea
     └── submit button
-[ ] Create booking form component
+[x] Create booking form component
     ├── form validation
     ├── error display
     └── loading state
-[ ] Implement form validation
+[x] Implement form validation
     ├── required fields
     ├── email format
     ├── phone format

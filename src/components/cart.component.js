@@ -77,6 +77,13 @@ class Cart {
   }
 
   /**
+   * Set booking price details
+   */
+  static setBookingPrice(priceDetails) {
+    CartStorage.setPriceDetails(priceDetails);
+  }
+
+  /**
    * Get booking price breakdown
    */
   static getPriceBreakdown() {
@@ -395,16 +402,18 @@ class Cart {
             <span class="cart-item-unit">${formatPriceType(item.price_type)}</span>
           </div>
           <div class="cart-item-footer">
-            <div class="cart-item-qty">
-              <button class="qty-btn-sm" onclick="Cart.updateQuantity('${item.item_id}', ${item.quantity - 1}, ${item.days})">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>
-              </button>
-              <span class="qty-value">${item.quantity}</span>
-              <button class="qty-btn-sm" onclick="Cart.updateQuantity('${item.item_id}', ${item.quantity + 1}, ${item.days})">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-              </button>
+            <div class="cart-item-footer-left">
+              <div class="cart-item-qty">
+                <button class="qty-btn-sm" onclick="Cart.updateQuantity('${item.item_id}', ${item.quantity - 1}, ${item.days})">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>
+                </button>
+                <span class="qty-value">${item.quantity}</span>
+                <button class="qty-btn-sm" onclick="Cart.updateQuantity('${item.item_id}', ${item.quantity + 1}, ${item.days})">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                </button>
+              </div>
+              <span class="cart-item-days">${item.days} hari</span>
             </div>
-            <span class="cart-item-days">${item.days} hari</span>
             <span class="cart-item-total">${formatCurrency(item.totalPrice)}</span>
           </div>
         </div>

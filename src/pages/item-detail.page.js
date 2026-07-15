@@ -237,6 +237,7 @@ function renderItemDetail(item) {
   // Store item data globally
   window.currentItem = item;
   window.itemImages = images;
+  window.availableQuantity = item.availableStock || item.stock; // Track available quantity
 }
 
 // ============================================
@@ -821,6 +822,14 @@ async function checkAvailabilityAndUpdatePrice(itemId, maxStock) {
     if (result.success && result.data) {
       const { isAvailable, availableQuantity, message, dates } = result.data;
 
+      // Store available quantity globally for quantity control
+      window.availableQuantity = availableQuantity;
+
+      // Update quantity buttons based on availability
+      if (availableQuantity !== undefined && availableQuantity !== null) {
+        updateQuantityMax(availableQuantity);
+      }
+
       if (availabilityStatus) {
         availabilityStatus.style.display = 'block';
 
@@ -834,6 +843,16 @@ async function checkAvailabilityAndUpdatePrice(itemId, maxStock) {
                 <span>Maaf, beberapa tanggal dalam range tidak tersedia. Silakan pilih tanggal lain.</span>
               </div>
             `;
+            updateBookButtonVisibility(true, false, 'Beberapa tanggal tidak tersedia');
+          } else if (availableQuantity < quantity) {
+            availabilityStatus.innerHTML = `
+              <div class="avail-status avail-warning">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                <span>Hanya ${availableQuantity} unit tersedia</span>
+              </div>
+            `;
+            updatePriceCalculation(startDate, endDate, availableQuantity);
+            updateBookButtonVisibility(true, availableQuantity > 0, `Hanya ${availableQuantity} unit tersedia`);
           } else {
             availabilityStatus.innerHTML = `
               <div class="avail-status avail-ok">
@@ -968,37 +987,107 @@ function initializeQuantityControl(maxStock) {
 
   if (!minusBtn || !plusBtn || !quantityInput) return;
 
-  minusBtn.addEventListener('click', () => updateQuantity(-1, maxStock));
-  plusBtn.addEventListener('click', () => updateQuantity(1, maxStock));
+  // Use availableQuantity from global or fall back to maxStock
+  const availableQty = window.availableQuantity || maxStock;
 
-  // Update plus button state based on stock
-  updatePlusButtonState(maxStock);
+  minusBtn.addEventListener('click', () => updateQuantity(-1, availableQty));
+  plusBtn.addEventListener('click', () => updateQuantity(1, availableQty));
+
+  // Update button states
+  updateQuantityButtons(availableQty);
 }
 
 function updateQuantity(delta, maxStock) {
-  const input = document.getElementById('quantity');
-  if (!input) return;
+  const minusBtn = document.getElementById('qty-minus');
+  const plusBtn = document.getElementById('qty-plus');
+  const quantityInput = document.getElementById('quantity');
+  if (!quantityInput) return;
 
-  let value = parseInt(input.value) + delta;
-  value = Math.max(1, Math.min(value, maxStock));
-  input.value = value;
+  const currentQty = parseInt(quantityInput.value) || 1;
+  const availableQty = window.availableQuantity || maxStock || currentQty;
 
-  updatePlusButtonState(maxStock);
+  let newValue = currentQty + delta;
+  newValue = Math.max(1, Math.min(newValue, availableQty));
+  quantityInput.value = newValue;
+
+  updateQuantityButtons(availableQty);
 
   // Re-check availability if dates are selected
   const item = window.currentItem;
   if (item) {
-    checkAvailabilityAndUpdatePrice(item.id, maxStock);
+    checkAvailabilityAndUpdatePrice(item.id, item.availableStock || item.stock);
   }
 }
 
 function updatePlusButtonState(maxStock) {
+  const availableQty = window.availableQuantity || maxStock || 1;
+  updateQuantityButtons(availableQty);
+}
+
+/**
+ * Update quantity buttons based on available quantity
+ */
+function updateQuantityButtons(availableQuantity) {
+  const minusBtn = document.getElementById('qty-minus');
   const plusBtn = document.getElementById('qty-plus');
   const quantityInput = document.getElementById('quantity');
+  const stockInfo = document.querySelector('.stock-info');
 
-  if (plusBtn && quantityInput) {
-    const currentValue = parseInt(quantityInput.value) || 1;
-    plusBtn.disabled = currentValue >= maxStock;
+  if (!quantityInput) return;
+
+  const currentValue = parseInt(quantityInput.value) || 1;
+  const available = availableQuantity || 1;
+
+  // Disable minus if at minimum
+  if (minusBtn) {
+    minusBtn.disabled = currentValue <= 1;
+  }
+
+  // Disable plus if at max available
+  if (plusBtn) {
+    plusBtn.disabled = currentValue >= available;
+  }
+
+  // Update stock info
+  if (stockInfo) {
+    stockInfo.textContent = `Tersedia: ${available} unit`;
+    stockInfo.style.color = available < 2 ? 'var(--color-warning-dark)' : 'var(--text-tertiary)';
+  }
+}
+
+/**
+ * Update quantity control max based on available quantity from API
+ */
+function updateQuantityMax(availableQuantity) {
+  const minusBtn = document.getElementById('qty-minus');
+  const plusBtn = document.getElementById('qty-plus');
+  const quantityInput = document.getElementById('quantity');
+  const stockInfo = document.querySelector('.stock-info');
+
+  if (!quantityInput) return;
+
+  const currentValue = parseInt(quantityInput.value) || 1;
+
+  // If current quantity exceeds available, adjust it
+  if (currentValue > availableQuantity) {
+    quantityInput.value = Math.max(1, availableQuantity);
+    Toast.warning(`Jumlah disesuaikan menjadi ${quantityInput.value} unit`);
+  }
+
+  // Disable minus if at minimum
+  if (minusBtn) {
+    minusBtn.disabled = parseInt(quantityInput.value) <= 1;
+  }
+
+  // Disable plus if at max available
+  if (plusBtn) {
+    plusBtn.disabled = parseInt(quantityInput.value) >= availableQuantity;
+  }
+
+  // Update stock info
+  if (stockInfo) {
+    stockInfo.textContent = `Tersedia: ${availableQuantity} unit`;
+    stockInfo.style.color = availableQuantity < 2 ? 'var(--color-warning-dark)' : 'var(--text-tertiary)';
   }
 }
 
