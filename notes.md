@@ -1,20 +1,69 @@
 lanjutkan pengembangan frontend untuk customer booking yang mengintegrasikan API dari folder /web-booking backend, dan fokus aplikasi frontend booking di folder projek web-booking-view
 
 
-cek implement cart storage, dengan detail :
-1. save to localStorage
-2. restore on page load
-3. sync across tabs
-4. create cart drawer /modal
+cek Implement POST /bookings, dengan detail :
+1. send booking data
+2. handle response
+3. store booking ID
+4. redirect to payment
+5. di backend service folder web-booking/ gunakan web-booking/docs/Maja.md sebagai refrensi payment gateway
+6. get token maja di url berikut `https://account.makaramas.com/auth/realms/maja/protocol/openid-connect/token`
+7. url register va di https://billing.maja.id/api/v2/register
+8. example request 
+{
+  "date": "2021-02-28",
+  "amount": 100000,
+  "name": "Alfiyah",
+  "email": "alfiyah@sebuahdomain.com",
+  "attribute1": "Fasilkom",
+  "attribute2": "Manajemen Sistem Informasi",
+  "items": [
+    {
+      "description": "Registration",
+      "unitPrice": 100000,
+      "qty": 1,
+      "amount": 100000
+    }
+  ],
+  "paymentMethod": "bni"
+}
+9. example response 
+{
+    "date": "2024-02-28",
+    "amount": 750000,
+    "name": "anto",
+    "email": "anto@anto.com",
+    "address": "Depok",
+    "attribute1": "PCR SWAB",
+    "attribute2": "2021-02-28",
+    "paymentMethod": "bni",
+    "items": [
+        {
+            "description": "PCR SWAB",
+            "unitPrice": 750000,
+            "qty": 1,
+            "amount": 750000
+        }
+    ],
+    "attributes": []
+}. parameter items untuk rincian
 
+gunakan credential untuk maja 
+MAJA_AUTH_URL=https://account.makaramas.com/auth/realms/maja/protocol/openid-connect/token
+MAJA_API_URL=https://billing.maja.id/api/v2
+MAJA_CLIENT_ID=MAJA80113
+MAJA_CLIENT_SECRET=B31tMd8VBkFqTcyKddVqTbPdDP2XmpzD
+MAJA_USERNAME=80113
+MAJA_PASSWORD=80113
 
-gunakan crdential
+gunakan crdential untuk login customer
 kode tenant MAJU1234 (case sensitive!)
 username : budi@email.com
 password : password123
 
 jangan gunakan tenant id, x-tenant id ataupun id tenant lagi, tapi gunakan kode tenan, di seluruh codebase backend dan frontend. pertahankan konsistensi codebase yang sudah ada
 
+gunakan docker-compose restart api untuk restart backend
 
 check endpoint public-routes/ di backend apakah sudah tersedia enpoint nya
 

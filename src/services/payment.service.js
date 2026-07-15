@@ -55,15 +55,23 @@ class PaymentService {
   /**
    * Initiate payment for a booking
    * @param {string} bookingId - Booking ID
-   * @param {Object} paymentData - Payment data { method }
+   * @param {string} method - Payment method (bank_transfer, ewallet, credit_card)
+   * @param {string} provider - Payment provider (midtrans)
    */
-  async initiatePayment(bookingId, paymentData = {}) {
-    const kodeTenant = this.getKodeTenant();
+  async initiatePayment(bookingId, method = 'bank_transfer', provider = 'midtrans') {
+    const customer = this.getCustomer();
+    const kodeTenant = customer?.kodeTenant || this.getKodeTenant();
+
+    // Map frontend method to MAJA payment method
+    const paymentMethodMap = {
+      'bank_transfer': 'bni', // Default to BNI for bank transfer
+      'ewallet': 'gopay',
+      'credit_card': 'credit_card'
+    };
 
     const payload = {
-      booking_id: bookingId,
-      method: paymentData.method || 'bank_transfer',
-      ...paymentData
+      bookingId: bookingId, // Backend expects bookingId (camelCase)
+      paymentMethod: paymentMethodMap[method] || 'bni' // Map to MAJA method
     };
 
     console.log('[PaymentService] Initiating payment:', payload);
@@ -72,7 +80,8 @@ class PaymentService {
     const response = await fetch(`${this.getApiBaseUrl()}/payments/initiate`, {
       method: 'POST',
       headers: {
-        ...this.getAuthHeaders(),
+        'Content-Type': 'application/json',
+        'Authorization': customer?.token ? `Bearer ${customer.token}` : '',
         'kode': kodeTenant
       },
       body: JSON.stringify(payload)

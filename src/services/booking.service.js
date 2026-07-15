@@ -33,21 +33,30 @@ class BookingService {
 
   /**
    * Get auth headers with customer token and kode tenant
+   * IMPORTANT: Always use 'kode' header, NOT 'x-tenant-id'
    */
   getAuthHeaders() {
     const customer = this.getCustomer();
+    const kodeTenant = customer?.kodeTenant || this.getKodeTenant();
+
     const headers = {
       'Content-Type': 'application/json',
     };
 
+    // Add customer token if available
     if (customer?.token) {
       headers['Authorization'] = `Bearer ${customer.token}`;
     }
 
-    const kodeTenant = customer?.kodeTenant || this.getKodeTenant();
+    // Add kode tenant header
     if (kodeTenant) {
       headers['kode'] = kodeTenant;
     }
+
+    console.log('[BookingService] Auth headers:', {
+      hasAuth: !!headers['Authorization'],
+      kode: headers['kode']
+    });
 
     return headers;
   }

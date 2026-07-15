@@ -104,7 +104,7 @@ function renderBookingCard(booking) {
           ${formatDate(booking.start_date)} - ${formatDate(booking.end_date)}
         </p>
         <p class="booking-card-items">
-          ${booking.items_count || booking.items?.length || 0} item
+          ${booking.itemCount || booking.items?.length || 0} item
         </p>
       </div>
 
