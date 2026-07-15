@@ -1,11 +1,14 @@
 /**
  * API Client - Simple Fetch wrapper
  * Uses kode tenant (not tenant ID)
+ *
+ * IMPORTANT: Always use 'kode' header, NOT 'x-tenant-id'
  */
 
 import Storage from '../utils/storage.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+const DEFAULT_TENANT = 'MAJU1234';
 
 class ApiClient {
   constructor() {
@@ -27,7 +30,14 @@ class ApiClient {
    * Get kode tenant
    */
   getKodeTenant() {
-    return Storage.get('tenant_code') || null;
+    // Try customer first (logged in user)
+    const customer = Storage.get('customer');
+    if (customer?.kodeTenant) {
+      return customer.kodeTenant;
+    }
+
+    // Fall back to storage tenant_code
+    return Storage.get('tenant_code') || import.meta.env.VITE_DEFAULT_TENANT || DEFAULT_TENANT;
   }
 
   /**
@@ -42,7 +52,7 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    // Add kode tenant
+    // Add kode tenant (NOT x-tenant-id)
     const kodeTenant = this.getKodeTenant();
     if (kodeTenant) {
       headers['kode'] = kodeTenant;

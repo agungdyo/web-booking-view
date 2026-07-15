@@ -1,8 +1,13 @@
 /**
  * Item Service - API Integration for Items
  * Uses public endpoints with kode tenant parameter
+ *
+ * IMPORTANT: Always use 'kode' header/query parameter, NOT 'x-tenant-id'
  */
 import Storage from '../utils/storage.js';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+const DEFAULT_TENANT = 'MAJU1234';
 
 class ItemService {
   /**
@@ -10,10 +15,8 @@ class ItemService {
    */
   getKodeTenant() {
     const fromStorage = Storage.get('tenant_code');
-    const fromEnv = import.meta.env.VITE_DEFAULT_TENANT;
-    const result = fromStorage || fromEnv;
-    console.log('[ItemService] getKodeTenant:', { fromStorage, fromEnv, result });
-    return result;
+    const fromEnv = import.meta.env.VITE_DEFAULT_TENANT || DEFAULT_TENANT;
+    return fromStorage || fromEnv;
   }
 
   /**
@@ -36,21 +39,28 @@ class ItemService {
       apiParams.is_available = params.is_available;
     }
 
-    console.log('[ItemService] API params:', apiParams);
-
-    // Direct fetch for public endpoint
+    // Build query string
     const queryString = new URLSearchParams(
       Object.entries(apiParams).filter(([_, v]) => v !== null && v !== undefined && v !== '')
     ).toString();
 
-    const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'}/public/items?${queryString}`;
-    console.log('[ItemService] URL:', url);
+    const url = `${API_BASE_URL}/public/items?${queryString}`;
+    console.log('[ItemService] Fetching items from:', url);
 
-    const response = await fetch(url);
-    const data = await response.json();
-    console.log('[ItemService] Raw response:', data);
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      console.log('[ItemService] Response:', data);
 
-    return data;
+      if (!data.success) {
+        throw new Error(data.error?.message || 'Failed to fetch items');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('[ItemService] Error fetching items:', error);
+      throw error;
+    }
   }
 
   /**
@@ -59,11 +69,16 @@ class ItemService {
    */
   async getItemTypes() {
     const kodeTenant = this.getKodeTenant();
-    console.log('[ItemService] Getting item types, kodeTenant:', kodeTenant);
+    const url = `${API_BASE_URL}/public/items/types?kode=${kodeTenant}`;
 
-    const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'}/public/items/types?kode=${kodeTenant}`;
-    const response = await fetch(url);
-    return response.json();
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('[ItemService] Error fetching item types:', error);
+      throw error;
+    }
   }
 
   /**
@@ -72,10 +87,16 @@ class ItemService {
    */
   async getItem(id) {
     const kodeTenant = this.getKodeTenant();
+    const url = `${API_BASE_URL}/public/items/${id}?kode=${kodeTenant}`;
 
-    const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'}/public/items/${id}?kode=${kodeTenant}`;
-    const response = await fetch(url);
-    return response.json();
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('[ItemService] Error fetching item:', error);
+      throw error;
+    }
   }
 
   /**
@@ -84,12 +105,16 @@ class ItemService {
    */
   async checkAvailability(itemId, startDate, endDate, quantity = 1) {
     const kodeTenant = this.getKodeTenant();
+    const url = `${API_BASE_URL}/public/items/${itemId}/availability?kode=${kodeTenant}&start_date=${startDate}&end_date=${endDate}&quantity=${quantity}`;
 
-    const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'}/public/items/${itemId}/availability?kode=${kodeTenant}&start_date=${startDate}&end_date=${endDate}&quantity=${quantity}`;
-    console.log('[ItemService] Checking availability:', url);
-
-    const response = await fetch(url);
-    return response.json();
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('[ItemService] Error checking availability:', error);
+      throw error;
+    }
   }
 
   /**
@@ -99,24 +124,20 @@ class ItemService {
    */
   async getAvailabilityCalendar(itemId, startDate, endDate) {
     const kodeTenant = this.getKodeTenant();
-
-    const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'}/public/items/${itemId}/availability-calendar?kode=${kodeTenant}&start_date=${startDate}&end_date=${endDate}`;
-    console.log('[ItemService] Getting availability calendar:', url);
+    const url = `${API_BASE_URL}/public/items/${itemId}/availability-calendar?kode=${kodeTenant}&start_date=${startDate}&end_date=${endDate}`;
 
     try {
       const response = await fetch(url);
       const data = await response.json();
-      console.log('[ItemService] Availability calendar:', data);
       return data;
     } catch (error) {
-      console.error('[ItemService] Availability calendar error:', error);
+      console.error('[ItemService] Error fetching availability calendar:', error);
       return { success: false, error: error.message };
     }
   }
 
   /**
    * Get booked/unavailable dates for an item (next 90 days by default)
-   * This is a convenience method that calls the availability calendar
    * Returns an array of date strings that are fully booked
    */
   async getBookedDates(itemId, days = 90) {
@@ -130,12 +151,10 @@ class ItemService {
     const result = await this.getAvailabilityCalendar(itemId, startStr, endStr);
 
     if (result.success && result.data) {
-      // Filter dates that are not available (booked or blocked)
       const bookedDates = result.data
         .filter(day => !day.available)
         .map(day => day.date);
 
-      console.log('[ItemService] Booked dates:', bookedDates);
       return bookedDates;
     }
 

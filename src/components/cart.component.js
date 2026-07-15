@@ -2,7 +2,7 @@
  * Cart Component - Enhanced Shopping Cart for Booking
  * Integrates with kode tenant system
  */
-import Storage from '../utils/storage.js';
+import CartStorage from '../services/cart-storage.service.js';
 import { formatCurrency, formatDate, formatItemType, formatPriceType } from '../utils/format.js';
 import Toast from './toast.component.js';
 
@@ -11,106 +11,21 @@ class Cart {
    * Get cart from storage
    */
   static getCart() {
-    return Storage.get('cart', {
-      items: [],
-      dates: null,
-      notes: '',
-      priceDetails: null,
-      kodeTenant: Storage.get('tenant_code') || 'MAJU1234' // Default kode tenant
-    });
+    return CartStorage.getCart();
   }
 
   /**
    * Save cart to storage
    */
   static saveCart(cart) {
-    // Always ensure kode tenant is set
-    cart.kodeTenant = Storage.get('tenant_code') || 'MAJU1234';
-    Storage.set('cart', cart);
-
-    // Trigger storage event for cross-tab sync
-    // localStorage.setItem already triggers storage event in other tabs,
-    // but we dispatch one for current tab to keep UI in sync
-    this._dispatchSyncEvent();
-  }
-
-  /**
-   * Dispatch storage sync event for current tab
-   */
-  static _dispatchSyncEvent() {
-    // Only dispatch if not already dispatching (prevent loops)
-    if (this._dispatchingSync) return;
-    this._dispatchingSync = true;
-
-    // Use setTimeout to batch rapid updates
-    clearTimeout(this._syncTimeout);
-    this._syncTimeout = setTimeout(() => {
-      // Dispatch a custom event for components that need to react
-      window.dispatchEvent(new CustomEvent('cart:sync', {
-        detail: this.getCart()
-      }));
-      this._dispatchingSync = false;
-    }, 100);
+    return CartStorage.saveCart(cart);
   }
 
   /**
    * Add item to cart with validation
    */
   static addItem(item, quantity = 1, days = 1) {
-    const cart = this.getCart();
-
-    // Validate item
-    if (!item || !item.id) {
-      console.error('[Cart] Invalid item:', item);
-      return null;
-    }
-
-    // Check if item already exists in cart
-    const existingIndex = cart.items.findIndex(i => i.item_id === item.id);
-
-    if (existingIndex >= 0) {
-      // Update existing item
-      cart.items[existingIndex].quantity += quantity;
-      cart.items[existingIndex].days = days;
-      cart.items[existingIndex].totalPrice =
-        cart.items[existingIndex].price *
-        cart.items[existingIndex].quantity *
-        cart.items[existingIndex].days;
-    } else {
-      // Add new item
-      const itemData = {
-        item_id: item.id,
-        item_uuid: item.id,
-        name: item.name,
-        type: item.type,
-        price: item.price,
-        price_type: item.priceType || item.price_type || 'per_day',
-        quantity: quantity,
-        days: days,
-        totalPrice: item.price * quantity * days,
-        image: this._extractImage(item.images),
-        specifications: item.specifications || {},
-        // Store kode tenant for API calls
-        kodeTenant: Storage.get('tenant_code') || 'MAJU1234'
-      };
-      cart.items.push(itemData);
-    }
-
-    this.saveCart(cart);
-    this.updateUI();
-
-    console.log('[Cart] Item added:', item.name, { quantity, days });
-    return cart;
-  }
-
-  /**
-   * Extract primary image from item
-   */
-  static _extractImage(images) {
-    if (!images || !Array.isArray(images)) return null;
-    if (typeof images[0] === 'string') return images[0];
-    if (images[0]?.url) return images[0].url;
-    return null;
+    return CartStorage.addItem(item, quantity, days);
   }
 
   /**
@@ -121,24 +36,11 @@ class Cart {
     const item = cart.items.find(i => i.item_id === itemId);
 
     if (item) {
-      // Apply updates
       if (updates.quantity !== undefined) {
-        item.quantity = Math.max(1, updates.quantity);
+        CartStorage.updateQuantity(itemId, updates.quantity, updates.days);
+      } else if (updates.days !== undefined) {
+        CartStorage.updateItemDays(itemId, updates.days);
       }
-      if (updates.days !== undefined) {
-        item.days = Math.max(1, updates.days);
-      }
-      if (updates.startDate !== undefined) {
-        item.startDate = updates.startDate;
-      }
-      if (updates.endDate !== undefined) {
-        item.endDate = updates.endDate;
-      }
-
-      // Recalculate total price
-      item.totalPrice = item.price * item.quantity * item.days;
-
-      this.saveCart(cart);
       this.updateUI();
     }
   }
@@ -147,114 +49,45 @@ class Cart {
    * Remove item from cart
    */
   static removeItem(itemId) {
-    const cart = this.getCart();
-    const itemIndex = cart.items.findIndex(i => i.item_id === itemId);
-
-    if (itemIndex >= 0) {
-      const removedItem = cart.items[itemIndex];
-      cart.items.splice(itemIndex, 1);
-      this.saveCart(cart);
-      this.updateUI();
-
-      Toast.info(`${removedItem.name} dihapus dari keranjang`);
-    }
+    CartStorage.removeItem(itemId);
+    this.updateUI();
   }
 
   /**
    * Update item quantity
    */
   static updateQuantity(itemId, quantity, days = null) {
-    const cart = this.getCart();
-    const item = cart.items.find(i => i.item_id === itemId);
-
-    if (item) {
-      if (quantity <= 0) {
-        this.removeItem(itemId);
-      } else {
-        item.quantity = quantity;
-        if (days !== null) {
-          item.days = days;
-        }
-        item.totalPrice = item.price * item.quantity * item.days;
-        this.saveCart(cart);
-        this.updateUI();
-      }
-    }
+    CartStorage.updateQuantity(itemId, quantity, days);
+    this.updateUI();
   }
 
   /**
    * Set booking dates for all items
    */
   static setDates(startDate, endDate) {
-    const cart = this.getCart();
-    cart.dates = { startDate, endDate };
-
-    // Update each item with dates
-    cart.items.forEach(item => {
-      item.startDate = startDate;
-      item.endDate = endDate;
-
-      // Recalculate duration based on dates
-      if (startDate && endDate) {
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        item.days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-        item.totalPrice = item.price * item.quantity * item.days;
-      }
-    });
-
-    this.saveCart(cart);
+    CartStorage.setDates(startDate, endDate);
     this.updateUI();
-
-    console.log('[Cart] Dates set:', { startDate, endDate });
   }
 
   /**
    * Set notes for booking
    */
   static setNotes(notes) {
-    const cart = this.getCart();
-    cart.notes = notes || '';
-    this.saveCart(cart);
-  }
-
-  /**
-   * Set booking price details
-   */
-  static setBookingPrice(priceDetails) {
-    const cart = this.getCart();
-    cart.priceDetails = priceDetails;
-    this.saveCart(cart);
+    CartStorage.setNotes(notes);
   }
 
   /**
    * Get booking price breakdown
    */
   static getPriceBreakdown() {
-    const cart = this.getCart();
-    const items = cart.items || [];
-
-    const subtotal = items.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
-    const itemCount = items.length;
-    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-    const totalDays = Math.max(...items.map(i => i.days || 1), 1);
-
-    return {
-      items: items,
-      subtotal: subtotal,
-      itemCount: itemCount,
-      totalQuantity: totalQuantity,
-      totalDays: totalDays,
-      dates: cart.dates,
-      notes: cart.notes
-    };
+    return CartStorage.getPriceBreakdown();
   }
 
   /**
    * Clear entire cart
    */
   static clear() {
-    Storage.remove('cart');
+    CartStorage.clear();
     this.updateUI();
     Toast.info('Keranjang dikosongkan');
   }
@@ -272,40 +105,35 @@ class Cart {
    * Get item count
    */
   static getItemCount() {
-    const cart = this.getCart();
-    return cart.items.reduce((sum, item) => sum + item.quantity, 0);
+    return CartStorage.getItemCount();
   }
 
   /**
-   * Get unique item count (not total quantity)
+   * Get unique item count
    */
   static getUniqueItemCount() {
-    const cart = this.getCart();
-    return cart.items.length;
+    return CartStorage.getUniqueItemCount();
   }
 
   /**
    * Calculate subtotal
    */
   static getSubtotal() {
-    const cart = this.getCart();
-    return cart.items.reduce((sum, item) => sum + (item.totalPrice || item.price * item.quantity * item.days), 0);
+    return CartStorage.getSubtotal();
   }
 
   /**
    * Check if cart is empty
    */
   static isEmpty() {
-    const cart = this.getCart();
-    return !cart.items || cart.items.length === 0;
+    return CartStorage.isEmpty();
   }
 
   /**
    * Check if dates are set
    */
   static hasDates() {
-    const cart = this.getCart();
-    return cart.dates && cart.dates.startDate && cart.dates.endDate;
+    return CartStorage.hasDates();
   }
 
   /**
@@ -359,7 +187,6 @@ class Cart {
     // Debounce UI updates for rapid changes
     clearTimeout(this._uiUpdateTimeout);
     this._uiUpdateTimeout = setTimeout(() => {
-      const cart = this.getCart();
       const itemCount = this.getItemCount();
 
       // Update cart badge if exists
@@ -396,7 +223,6 @@ class Cart {
    */
   static updateUINow() {
     clearTimeout(this._uiUpdateTimeout);
-    const cart = this.getCart();
     const itemCount = this.getItemCount();
 
     // Update cart badge if exists
@@ -566,7 +392,7 @@ class Cart {
           <h4 class="cart-item-name">${item.name}</h4>
           <div class="cart-item-meta">
             <span class="cart-item-price">${formatCurrency(item.price)}</span>
-            <span class="cart-item-unit">${formatPriceType(item.priceType || item.price_type)}</span>
+            <span class="cart-item-unit">${formatPriceType(item.price_type)}</span>
           </div>
           <div class="cart-item-footer">
             <div class="cart-item-qty">
@@ -646,8 +472,6 @@ class Cart {
    * Proceed to booking
    */
   static proceedToBooking() {
-    const cart = this.getCart();
-
     // Validate cart
     if (this.isEmpty()) {
       Toast.warning('Keranjang masih kosong');
@@ -667,24 +491,7 @@ class Cart {
    * Prepare cart data for API submission
    */
   static prepareForCheckout() {
-    const cart = this.getCart();
-    const kodeTenant = Storage.get('tenant_code') || 'MAJU1234';
-
-    return {
-      kodeTenant: kodeTenant,
-      items: cart.items.map(item => ({
-        item_id: item.item_id,
-        quantity: item.quantity,
-        start_date: cart.dates?.startDate || item.startDate,
-        end_date: cart.dates?.endDate || item.endDate,
-        days: item.days,
-        price_per_unit: item.price,
-        subtotal: item.totalPrice
-      })),
-      dates: cart.dates,
-      notes: cart.notes,
-      subtotal: this.getSubtotal()
-    };
+    return CartStorage.prepareForCheckout();
   }
 
   /**
@@ -720,12 +527,6 @@ class Cart {
    * Initialize cart
    */
   static init() {
-    // Ensure kode tenant is set
-    const kodeTenant = Storage.get('tenant_code');
-    if (!kodeTenant) {
-      Storage.set('tenant_code', 'MAJU1234');
-    }
-
     // Render cart drawer if not exists
     if (!document.getElementById('cart-drawer')) {
       document.body.insertAdjacentHTML('beforeend', this.renderDrawerHTML());
@@ -737,12 +538,11 @@ class Cart {
     // Update UI
     this.updateUI();
 
-    console.log('[Cart] Initialized with kode tenant:', kodeTenant || 'MAJU1234');
+    console.log('[Cart] Initialized with kode tenant:', CartStorage.getKodeTenant());
   }
 
   /**
    * Setup cross-tab synchronization using storage event
-   * Listens for changes from other tabs and updates UI accordingly
    */
   static setupCrossTabSync() {
     // Remove any existing listener to prevent duplicates
@@ -753,8 +553,8 @@ class Cart {
     // Create listener for storage changes from other tabs
     this._storageListener = (event) => {
       // Check if cart storage was changed in another tab
-      if (event.key === Storage._prefix + 'cart') {
-        console.log('[Cart] Detected cart change from another tab:', event);
+      if (event.key === 'wb_cart') {
+        console.log('[Cart] Detected cart change from another tab');
 
         // Parse old and new values
         let oldCount = 0;
@@ -776,10 +576,8 @@ class Cart {
           Toast.info('Keranjang dikosongkan dari tab lain');
           this.closeDrawer();
         } else if (newCount < oldCount) {
-          // Items were removed in another tab
           Toast.info('Item dihapus dari keranjang di tab lain');
         } else if (newCount > oldCount) {
-          // Items were added in another tab
           Toast.info(`${newCount - oldCount} item ditambahkan ke keranjang di tab lain`);
         }
       }
@@ -789,7 +587,7 @@ class Cart {
     window.addEventListener('storage', this._storageListener);
 
     // Also listen for internal sync events
-    window.addEventListener('cart:sync', (event) => {
+    window.addEventListener('cart:sync', () => {
       this.updateUINow();
     });
 

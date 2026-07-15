@@ -1,15 +1,27 @@
 /**
  * Tenant Service
- * Uses kode tenant (not tenant ID)
+ * Handles tenant management
+ *
+ * IMPORTANT: Always use 'kode' header/query parameter, NOT 'x-tenant-id'
  */
 import Storage from '../utils/storage.js';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+const DEFAULT_TENANT = 'MAJU1234';
 
 class TenantService {
   /**
    * Get API base URL
    */
   getApiBaseUrl() {
-    return import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+    return API_BASE_URL;
+  }
+
+  /**
+   * Get kode tenant from storage
+   */
+  getKodeTenant() {
+    return Storage.get('tenant_code') || import.meta.env.VITE_DEFAULT_TENANT || DEFAULT_TENANT;
   }
 
   /**
@@ -39,8 +51,11 @@ class TenantService {
    * Set current tenant
    */
   setCurrentTenant(tenant) {
+    // Store full tenant data
     Storage.set('tenant', tenant);
-    Storage.set('tenant_code', tenant.kodeTenant); // Kode tenant
+    // Store kode tenant separately for easy access
+    Storage.set('tenant_code', tenant.kodeTenant);
+    console.log('[TenantService] Tenant set:', tenant.name, '(kode:', tenant.kodeTenant + ')');
   }
 
   /**
@@ -51,13 +66,22 @@ class TenantService {
 
     // Check URL for tenant code
     const urlParams = new URLSearchParams(window.location.search);
-    const tenantCode = urlParams.get('t') || Storage.get('tenant_code');
-    console.log('[TenantService] Found tenant code:', tenantCode);
+    const urlTenantCode = urlParams.get('t');
+    const storageTenantCode = Storage.get('tenant_code');
+
+    // Priority: URL param > storage > env default
+    const tenantCode = urlTenantCode || storageTenantCode;
+    console.log('[TenantService] Tenant code source:', {
+      url: urlTenantCode,
+      storage: storageTenantCode,
+      final: tenantCode
+    });
 
     if (tenantCode) {
       try {
         console.log('[TenantService] Fetching tenant from API...');
         const response = await this.getTenantByKode(tenantCode);
+
         if (response.success) {
           console.log('[TenantService] Tenant loaded:', response.data.name);
           this.setCurrentTenant(response.data);
@@ -69,12 +93,14 @@ class TenantService {
     }
 
     // Check default tenant from env
-    const defaultTenant = import.meta.env.VITE_DEFAULT_TENANT;
+    const defaultTenant = import.meta.env.VITE_DEFAULT_TENANT || DEFAULT_TENANT;
     console.log('[TenantService] Default tenant from env:', defaultTenant);
-    if (defaultTenant && !tenantCode) {
+
+    if (defaultTenant && defaultTenant !== tenantCode) {
       try {
         console.log('[TenantService] Fetching default tenant...');
         const response = await this.getTenantByKode(defaultTenant);
+
         if (response.success) {
           console.log('[TenantService] Default tenant loaded:', response.data.name);
           this.setCurrentTenant(response.data);
@@ -85,8 +111,32 @@ class TenantService {
       }
     }
 
+    // Fallback: use stored tenant if available
+    const storedTenant = this.getCurrentTenant();
+    if (storedTenant && storedTenant.kodeTenant) {
+      console.log('[TenantService] Using stored tenant:', storedTenant.name);
+      return storedTenant;
+    }
+
     console.warn('[TenantService] No tenant found, using guest mode');
     return null;
+  }
+
+  /**
+   * Set tenant code directly (without fetching tenant info)
+   */
+  setTenantCode(kodeTenant) {
+    Storage.set('tenant_code', kodeTenant);
+    console.log('[TenantService] Tenant code set to:', kodeTenant);
+  }
+
+  /**
+   * Clear tenant data
+   */
+  clearTenant() {
+    Storage.remove('tenant');
+    Storage.remove('tenant_code');
+    console.log('[TenantService] Tenant data cleared');
   }
 }
 

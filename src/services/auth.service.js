@@ -1,23 +1,34 @@
 /**
  * Authentication Service
  * Handles customer authentication and token management
- * Uses kode tenant (not tenant ID)
+ *
+ * IMPORTANT: Always use 'kode' header/query parameter, NOT 'x-tenant-id'
  */
 import Storage from '../utils/storage.js';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+const DEFAULT_TENANT = 'MAJU1234';
 
 class AuthService {
   /**
    * Get API base URL
    */
   getApiBaseUrl() {
-    return import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+    return API_BASE_URL;
   }
 
   /**
    * Get kode tenant from storage
    */
   getKodeTenant() {
-    return Storage.get('tenant_code') || import.meta.env.VITE_DEFAULT_TENANT;
+    return Storage.get('tenant_code') || import.meta.env.VITE_DEFAULT_TENANT || DEFAULT_TENANT;
+  }
+
+  /**
+   * Set kode tenant
+   */
+  setKodeTenant(kodeTenant) {
+    Storage.set('tenant_code', kodeTenant);
   }
 
   /**
@@ -53,20 +64,20 @@ class AuthService {
 
     const { customer, token } = data.data;
 
-    // Store customer data
+    // Store customer data with kode tenant
     const customerData = {
       id: customer.id,
+      customer_uuid: customer.id,
       name: customer.name,
       email: customer.email,
-      phone: customer.phone,
+      phone: customer.phone || '',
+      address: customer.address || '',
       token: token,
-      kodeTenant: customer.kodeTenant,
+      kodeTenant: kodeTenant,
+      loginAt: new Date().toISOString()
     };
 
     Storage.set('customer', customerData);
-
-    // Also store in localStorage for direct access
-    localStorage.setItem('wb_customer', JSON.stringify(customerData));
 
     console.log('[AuthService] Login successful:', customer.name);
 
@@ -95,16 +106,14 @@ class AuthService {
       email: data.email,
       phone: data.phone || '',
       password: data.password,
+      kodeTenant: kodeTenant
     };
-
-    if (kodeTenant) {
-      payload.kodeTenant = kodeTenant;
-    }
 
     const response = await fetch(`${this.getApiBaseUrl()}/customers/public`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'kode': kodeTenant
       },
       body: JSON.stringify(payload)
     });
@@ -129,14 +138,6 @@ class AuthService {
     const customer = Storage.get('customer');
     if (customer) return customer;
 
-    // Fallback to localStorage
-    try {
-      const local = localStorage.getItem('wb_customer');
-      if (local) return JSON.parse(local);
-    } catch (e) {
-      // Ignore
-    }
-
     return null;
   }
 
@@ -153,7 +154,6 @@ class AuthService {
    */
   logout() {
     Storage.remove('customer');
-    localStorage.removeItem('wb_customer');
     console.log('[AuthService] Logged out');
   }
 
@@ -170,6 +170,7 @@ class AuthService {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'kode': customer.kodeTenant
       },
       body: JSON.stringify({ refreshToken: customer.refresh_token })
     });
@@ -183,14 +184,13 @@ class AuthService {
         refresh_token: data.data.refreshToken || customer.refresh_token,
       };
       Storage.set('customer', updated);
-      localStorage.setItem('wb_customer', JSON.stringify(updated));
     }
 
     return data;
   }
 
   /**
-   * Get current customer profile
+   * Get current customer profile from API
    */
   async getMe() {
     const customer = this.getCurrentCustomer();
@@ -198,14 +198,17 @@ class AuthService {
       throw new Error('Not logged in');
     }
 
+    const kodeTenant = customer.kodeTenant || this.getKodeTenant();
+
     const response = await fetch(`${this.getApiBaseUrl()}/customers/me`, {
       headers: {
         'Authorization': `Bearer ${customer.token}`,
-        'kode': customer.kodeTenant
+        'kode': kodeTenant
       }
     });
 
-    return response.json();
+    const data = await response.json();
+    return data;
   }
 
   /**
@@ -221,7 +224,8 @@ class AuthService {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${customer.token}`
+        'Authorization': `Bearer ${customer.token}`,
+        'kode': customer.kodeTenant || this.getKodeTenant()
       },
       body: JSON.stringify({ currentPassword, newPassword })
     });

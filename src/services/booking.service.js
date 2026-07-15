@@ -1,29 +1,41 @@
 /**
  * Booking Service
- * Uses kode tenant (not tenant ID)
+ * Handles booking operations
+ *
+ * IMPORTANT: Always use 'kode' header/query parameter, NOT 'x-tenant-id'
  */
 import Storage from '../utils/storage.js';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+const DEFAULT_TENANT = 'MAJU1234';
 
 class BookingService {
   /**
    * Get API base URL
    */
   getApiBaseUrl() {
-    return import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+    return API_BASE_URL;
   }
 
   /**
    * Get kode tenant
    */
   getKodeTenant() {
-    return Storage.get('tenant_code') || import.meta.env.VITE_DEFAULT_TENANT;
+    return Storage.get('tenant_code') || import.meta.env.VITE_DEFAULT_TENANT || DEFAULT_TENANT;
+  }
+
+  /**
+   * Get customer from storage
+   */
+  getCustomer() {
+    return Storage.get('customer');
   }
 
   /**
    * Get auth headers with customer token and kode tenant
    */
   getAuthHeaders() {
-    const customer = Storage.get('customer');
+    const customer = this.getCustomer();
     const headers = {
       'Content-Type': 'application/json',
     };
@@ -32,8 +44,9 @@ class BookingService {
       headers['Authorization'] = `Bearer ${customer.token}`;
     }
 
-    if (customer?.kodeTenant) {
-      headers['kode'] = customer.kodeTenant;
+    const kodeTenant = customer?.kodeTenant || this.getKodeTenant();
+    if (kodeTenant) {
+      headers['kode'] = kodeTenant;
     }
 
     return headers;
@@ -41,28 +54,41 @@ class BookingService {
 
   /**
    * Create new booking
+   * @param {Object} data - Booking data
    */
   async createBooking(data) {
+    const customer = this.getCustomer();
+    const kodeTenant = customer?.kodeTenant || this.getKodeTenant();
+
     const payload = {
-      customer_id: data.customer_id,
-      start_date: data.start_date,
-      end_date: data.end_date,
+      customerId: customer?.id || data.customer_id, // Backend expects customerId (camelCase)
+      startDate: data.start_date || data.startDate, // Backend expects startDate (camelCase)
+      endDate: data.end_date || data.endDate, // Backend expects endDate (camelCase)
       items: data.items.map(item => ({
-        item_id: item.item_id,
-        quantity: item.quantity || 1,
-        days: item.days || 1,
+        itemId: item.item_id || item.id, // Backend expects itemId (camelCase)
+        quantity: parseInt(item.quantity) || 1,
+        days: parseInt(item.days) || 1,
       })),
       notes: data.notes || '',
-      discount_amount: data.discount_amount || 0,
+      discount_amount: parseFloat(data.discount_amount) || 0,
     };
+
+    console.log('[BookingService] Creating booking with payload:', payload);
+    console.log('[BookingService] Using kode tenant:', kodeTenant);
 
     const response = await fetch(`${this.getApiBaseUrl()}/bookings`, {
       method: 'POST',
-      headers: this.getAuthHeaders(),
+      headers: {
+        ...this.getAuthHeaders(),
+        'kode': kodeTenant
+      },
       body: JSON.stringify(payload)
     });
 
-    return response.json();
+    const result = await response.json();
+    console.log('[BookingService] Booking response:', result);
+
+    return result;
   }
 
   /**
@@ -80,14 +106,17 @@ class BookingService {
    * Get customer's bookings
    */
   async getMyBookings(params = {}) {
-    const customer = Storage.get('customer');
+    const customer = this.getCustomer();
     if (!customer?.id) {
       throw new Error('Not logged in');
     }
 
+    const kodeTenant = customer.kodeTenant || this.getKodeTenant();
+
     const queryParams = new URLSearchParams({
       page: params.page || 1,
       limit: params.limit || 10,
+      kode: kodeTenant // Include kode tenant in query
     });
 
     const response = await fetch(`${this.getApiBaseUrl()}/customers/${customer.id}/bookings?${queryParams}`, {
@@ -105,31 +134,9 @@ class BookingService {
 
     const response = await fetch(`${this.getApiBaseUrl()}/bookings/track/${code}?kode=${kodeTenant}`, {
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'kode': kodeTenant
       }
-    });
-
-    return response.json();
-  }
-
-  /**
-   * Calculate price
-   */
-  async calculatePrice(items, discountAmount = 0, taxRate = 10) {
-    const payload = {
-      items: items.map(item => ({
-        item_id: item.item_id,
-        quantity: item.quantity || 1,
-        days: item.days || 1,
-      })),
-      discount_amount: discountAmount,
-      tax_rate: taxRate,
-    };
-
-    const response = await fetch(`${this.getApiBaseUrl()}/utils/calculate-price`, {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: JSON.stringify(payload)
     });
 
     return response.json();
@@ -139,9 +146,32 @@ class BookingService {
    * Cancel booking
    */
   async cancelBooking(id) {
+    const kodeTenant = this.getKodeTenant();
+
     const response = await fetch(`${this.getApiBaseUrl()}/bookings/${id}`, {
       method: 'DELETE',
-      headers: this.getAuthHeaders()
+      headers: {
+        ...this.getAuthHeaders(),
+        'kode': kodeTenant
+      }
+    });
+
+    return response.json();
+  }
+
+  /**
+   * Update booking status (admin)
+   */
+  async updateBookingStatus(id, status) {
+    const kodeTenant = this.getKodeTenant();
+
+    const response = await fetch(`${this.getApiBaseUrl()}/bookings/${id}/status`, {
+      method: 'PUT',
+      headers: {
+        ...this.getAuthHeaders(),
+        'kode': kodeTenant
+      },
+      body: JSON.stringify({ status })
     });
 
     return response.json();

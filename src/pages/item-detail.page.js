@@ -58,7 +58,8 @@ function renderItemDetail(item) {
   }
 
   const primaryImage = images.find(img => img.is_primary)?.url || images[0]?.url || null;
-  const isAvailable = item.is_available && (item.availableStock > 0 || item.stock > 0);
+  // API returns isAvailable (camelCase), not is_available (snake_case)
+  const isAvailable = (item.isAvailable || item.is_available) && (item.availableStock > 0 || item.stock > 0);
 
   // Process specifications
   const specs = item.specifications || {};
@@ -192,18 +193,20 @@ function renderItemDetail(item) {
                 </div>
               </div>
 
-              <!-- Book Button -->
-              <button class="btn btn-primary btn-lg btn-block book-btn" id="book-btn" ${!isAvailable ? 'disabled' : ''} onclick="handleBookNow()">
-                ${isAvailable ? `
+              <!-- Book Button - Only show when dates are selected -->
+              <div id="book-section" style="display: none;">
+                <button class="btn btn-primary btn-lg btn-block book-btn" id="book-btn" onclick="handleBookNow()">
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
                   Pesan Sekarang
-                ` : 'Tidak Tersedia'}
-              </button>
+                </button>
+                <p class="book-note" id="book-note"></p>
+              </div>
 
-              <p class="book-note">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                ${isAvailable ? 'Pilih tanggal untuk melihat total harga' : 'Maaf, item ini sedang tidak tersedia'}
-              </p>
+              <!-- Date Selection Prompt -->
+              <div id="date-selection-prompt" class="date-selection-prompt">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                <span>Pilih tanggal mulai dan selesai untuk memesan</span>
+              </div>
             </div>
           </div>
         </div>
@@ -768,7 +771,10 @@ async function checkAvailabilityAndUpdatePrice(itemId, maxStock) {
   const endInput = document.getElementById('end-date');
   const quantityInput = document.getElementById('quantity');
 
-  if (!startInput?.value || !endInput?.value) return;
+  if (!startInput?.value || !endInput?.value) {
+    updateBookButtonVisibility(false);
+    return;
+  }
 
   const startDate = startInput.value;
   const endDate = endInput.value;
@@ -800,6 +806,8 @@ async function checkAvailabilityAndUpdatePrice(itemId, maxStock) {
         </div>
       `;
     }
+    // Hide book button when dates are invalid
+    updateBookButtonVisibility(false);
     return;
   }
 
@@ -834,6 +842,8 @@ async function checkAvailabilityAndUpdatePrice(itemId, maxStock) {
               </div>
             `;
             updatePriceCalculation(startDate, endDate, quantity);
+            // Show and enable book button
+            updateBookButtonVisibility(true, true, '');
           }
         } else {
           availabilityStatus.innerHTML = `
@@ -842,6 +852,8 @@ async function checkAvailabilityAndUpdatePrice(itemId, maxStock) {
               <span>${message || 'Tidak tersedia untuk tanggal tersebut'}</span>
             </div>
           `;
+          // Show book button but disabled
+          updateBookButtonVisibility(true, false, 'Item tidak tersedia untuk tanggal tersebut');
         }
       }
     } else {
@@ -863,6 +875,8 @@ async function checkAvailabilityAndUpdatePrice(itemId, maxStock) {
       `;
     }
     updatePriceCalculation(startDate, endDate, quantity);
+    // Show book button with warning message
+    updateBookButtonVisibility(true, true, 'Ketersediaan akan dikonfirmasi saat checkout');
   }
 }
 
@@ -903,6 +917,45 @@ function updatePriceCalculation(startDate, endDate, quantity) {
   if (calcQuantity) calcQuantity.textContent = `${quantity} unit`;
   if (calcSubtotal) calcSubtotal.textContent = formatCurrency(subtotal);
   if (priceCalculation) priceCalculation.style.display = 'block';
+}
+
+/**
+ * Show or hide the book button based on date selection and availability
+ * @param {boolean} show - Whether to show the button
+ * @param {boolean} enabled - Whether the button should be enabled
+ * @param {string} message - Optional message to show below the button
+ */
+function updateBookButtonVisibility(show, enabled = true, message = '') {
+  const bookSection = document.getElementById('book-section');
+  const datePrompt = document.getElementById('date-selection-prompt');
+  const bookBtn = document.getElementById('book-btn');
+  const bookNote = document.getElementById('book-note');
+
+  if (!bookSection) return;
+
+  if (show) {
+    bookSection.style.display = 'block';
+    if (datePrompt) datePrompt.style.display = 'none';
+
+    if (bookBtn) {
+      bookBtn.disabled = !enabled;
+      if (!enabled) {
+        bookBtn.classList.add('btn-disabled');
+      } else {
+        bookBtn.classList.remove('btn-disabled');
+      }
+    }
+
+    if (bookNote) {
+      bookNote.innerHTML = message ? `
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        ${message}
+      ` : '';
+    }
+  } else {
+    bookSection.style.display = 'none';
+    if (datePrompt) datePrompt.style.display = 'flex';
+  }
 }
 
 // ============================================
@@ -1040,9 +1093,12 @@ window.handleBookNow = async function() {
     const subtotal = item.price * duration * quantity;
 
     // Add to cart with full item data
+    const { tenantService } = await import('../services/tenant.service.js');
+    const kodeTenant = tenantService.getKodeTenant();
+
     const cartData = {
       ...item,
-      kodeTenant: 'MAJU1234' // Explicitly set kode tenant
+      kodeTenant: kodeTenant
     };
 
     Cart.addItem(cartData, quantity, duration);
@@ -1051,7 +1107,7 @@ window.handleBookNow = async function() {
     // Store calculated price for booking
     Cart.setBookingPrice({
       itemId: item.id,
-      kodeTenant: 'MAJU1234',
+      kodeTenant: kodeTenant,
       pricePerUnit: item.price,
       priceType: item.priceType || item.price_type,
       duration: duration,
@@ -1077,7 +1133,7 @@ window.handleBookNow = async function() {
       quantity,
       duration,
       subtotal,
-      kodeTenant: 'MAJU1234'
+      kodeTenant: kodeTenant
     });
 
   } catch (error) {
@@ -1104,16 +1160,19 @@ window.handleBookNow = async function() {
 
       const subtotal = item.price * duration * quantity;
 
+      const { tenantService: tenantSvcOffline } = await import('../services/tenant.service.js');
+      const kodeTenantOffline = tenantSvcOffline.getKodeTenant();
+
       const cartData = {
         ...item,
-        kodeTenant: 'MAJU1234'
+        kodeTenant: kodeTenantOffline
       };
 
       Cart.addItem(cartData, quantity, duration);
       Cart.setDates(startDate, endDate);
       Cart.setBookingPrice({
         itemId: item.id,
-        kodeTenant: 'MAJU1234',
+        kodeTenant: kodeTenantOffline,
         pricePerUnit: item.price,
         priceType: item.priceType || item.price_type,
         duration: duration,
@@ -1142,7 +1201,8 @@ function resetBookButton(btn) {
   if (!btn) return;
 
   const item = window.currentItem;
-  const isAvailable = item?.is_available && (item.availableStock > 0 || item.stock > 0);
+  // API returns isAvailable (camelCase), not is_available (snake_case)
+  const isAvailable = (item?.isAvailable || item?.is_available) && (item.availableStock > 0 || item.stock > 0);
 
   btn.disabled = !isAvailable;
   btn.innerHTML = isAvailable ? `
