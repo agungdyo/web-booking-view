@@ -8,6 +8,7 @@ import { tenantService } from './services/tenant.service.js';
 import { authService } from './services/auth.service.js';
 import Storage from './utils/storage.js';
 import Cart from './components/cart.component.js';
+import Toast from './components/toast.component.js';
 
 // Import pages
 import { renderHomePage } from './pages/home.page.js';
@@ -63,10 +64,21 @@ async function initApp() {
       const { itemService } = await import('./services/item.service.js');
       const response = await itemService.getItem(itemId);
       if (response.success) {
-        Cart.addItem(response.data);
+        const item = response.data;
+        Cart.addItem(item);
+
+        // Show success toast
+        Toast.success(`${item.name} ditambahkan ke keranjang!`);
+
+        // Open cart drawer after adding
+        Cart.openDrawer();
+
+        // Update header badge
+        Cart.updateUI();
       }
     } catch (error) {
       console.error('Failed to add item to cart:', error);
+      Toast.error('Gagal menambahkan item ke keranjang');
     }
   };
 

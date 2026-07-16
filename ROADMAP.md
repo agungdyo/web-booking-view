@@ -194,18 +194,18 @@ Project frontend untuk customer booking yang mengintegrasikan API dari web-booki
     ├── booking code display
     ├── summary
     └── next steps
-[ ] Implement price calculation
+[x] Implement price calculation
     ├── POST /utils/calculate-price
     ├── real-time updates
     └── tax calculation
 ```
 
 ### Deliverables
-- [ ] Cart system works
-- [ ] Booking form functional
-- [ ] Booking created successfully
-- [ ] Price calculation accurate
-- [ ] Booking confirmation displayed
+- [x] Cart system works
+- [x] Booking form functional
+- [x] Booking created successfully
+- [x] Price calculation accurate
+- [x] Booking confirmation displayed
 
 ---
 
@@ -221,12 +221,12 @@ Project frontend untuk customer booking yang mengintegrasikan API dari web-booki
 
 #### Day 1-2: Payment Page
 ```
-[ ] Create payment page
+[x] Create payment page
     ├── booking summary
     ├── amount display
     ├── payment method selection
     └── proceed button
-[ ] Create payment method component
+[x] Create payment method component
     ├── bank transfer option
     ├── e-wallet option
     └── credit card option

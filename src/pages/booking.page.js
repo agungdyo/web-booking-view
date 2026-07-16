@@ -7,6 +7,10 @@ import Cart from '../components/cart.component.js';
 import { formatCurrency, formatDate, formatDateRange } from '../utils/format.js';
 import Toast from '../components/toast.component.js';
 
+// Tax and fee constants (should match backend)
+const TAX_RATE = 11;
+const VA_ADMIN_FEE = 3500;
+
 export async function renderBookingPage() {
   const content = document.getElementById('page-content');
   const cart = Cart.getCart();
@@ -46,11 +50,11 @@ export async function renderBookingPage() {
     return;
   }
 
-  // Calculate totals
+  // Calculate totals with tax and admin fee
   const subtotal = Cart.getSubtotal();
-  const taxRate = 10;
-  const taxAmount = subtotal * (taxRate / 100);
-  const total = subtotal + taxAmount;
+  const taxAmount = subtotal * (TAX_RATE / 100);
+  const adminFee = VA_ADMIN_FEE;
+  const total = subtotal + taxAmount + adminFee;
 
   // Calculate days
   let days = 1;
@@ -145,13 +149,21 @@ export async function renderBookingPage() {
                     <span>${formatCurrency(subtotal)}</span>
                   </div>
                   <div class="booking-total-row">
-                    <span>Pajak (${taxRate}%)</span>
+                    <span>Pajak (${TAX_RATE}%)</span>
                     <span>${formatCurrency(taxAmount)}</span>
+                  </div>
+                  <div class="booking-total-row">
+                    <span>Biaya Admin VA</span>
+                    <span>${formatCurrency(adminFee)}</span>
                   </div>
                   <div class="booking-total-row total">
                     <span>Total</span>
                     <span class="price price-large">${formatCurrency(total)}</span>
                   </div>
+                </div>
+
+                <div class="alert alert-info" style="margin-top: var(--space-lg); font-size: var(--text-xs);">
+                  <p>Total pembayaran sudah termasuk PPN ${TAX_RATE}% dan biaya admin Virtual Account</p>
                 </div>
               </div>
             </div>
@@ -166,6 +178,7 @@ export async function renderBookingPage() {
 
   // Store customer data
   window.bookingCustomer = customer;
+  window.bookingTotals = { subtotal, taxAmount, adminFee, total };
 }
 
 function initializeDatePickers() {

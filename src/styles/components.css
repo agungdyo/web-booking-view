@@ -3028,3 +3028,67 @@ span.flatpickr-input {
   background: var(--bg-tertiary);
   color: var(--text-tertiary);
 }
+
+/* ============================================
+   Cart Icon in Header
+   ============================================ */
+
+.cart-icon-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.cart-icon-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--color-primary);
+}
+
+.cart-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  background: var(--color-error);
+  color: white;
+  font-size: 10px;
+  font-weight: var(--font-bold);
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  animation: cart-badge-appear 0.3s ease;
+}
+
+@keyframes cart-badge-appear {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Hide cart icon on mobile (shown in bottom nav instead) */
+@media (max-width: 768px) {
+  .cart-icon-btn {
+    display: none;
+  }
+}

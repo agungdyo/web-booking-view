@@ -2,10 +2,10 @@ lanjutkan pengembangan frontend untuk customer booking yang mengintegrasikan API
 
 
 cek Implement POST /bookings, dengan detail :
-1. send booking data
-2. handle response
-3. store booking ID
-4. redirect to payment
+1. POST /utils/calculate-price
+2. real-time updates
+3. tambahkan tax callculation and va admin sebagai ve 3500 per transaksi
+4. buatkan supaya muncul icon chart di header, supaya setiap penambahan dan pengurangan items bisa terlihat angkanya di icon cart
 5. di backend service folder web-booking/ gunakan web-booking/docs/Maja.md sebagai refrensi payment gateway
 6. get token maja di url berikut `https://account.makaramas.com/auth/realms/maja/protocol/openid-connect/token`
 7. url register va di https://billing.maja.id/api/v2/register

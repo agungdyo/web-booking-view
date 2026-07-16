@@ -130,6 +130,26 @@ class Cart {
   }
 
   /**
+   * Get totals with tax and admin fee
+   */
+  static getTotals() {
+    const subtotal = this.getSubtotal();
+    const taxRate = 0.11; // 11% PPN
+    const adminFee = 3500; // VA Admin fee
+
+    const taxAmount = Math.round(subtotal * taxRate);
+    const total = subtotal + taxAmount + adminFee;
+
+    return {
+      subtotal,
+      taxRate: taxRate * 100,
+      taxAmount,
+      adminFee,
+      total
+    };
+  }
+
+  /**
    * Check if cart is empty
    */
   static isEmpty() {
@@ -326,6 +346,9 @@ class Cart {
 
         <!-- Price Summary -->
         <div class="cart-summary">
+          ${(() => {
+            const totals = this.getTotals();
+            return `
           <div class="summary-header">
             <h4>Ringkasan</h4>
             <span class="item-count">${this.getUniqueItemCount()} item</span>
@@ -347,18 +370,25 @@ class Cart {
 
           <div class="summary-row">
             <span>Subtotal</span>
-            <span class="summary-subtotal">${formatCurrency(this.getSubtotal())}</span>
+            <span class="summary-subtotal">${formatCurrency(totals.subtotal)}</span>
           </div>
 
           <div class="summary-row summary-note">
-            <span>Tax &amp; fees</span>
-            <span class="summary-note-text">Akan dihitung saat checkout</span>
+            <span>Pajak (${totals.taxRate}%)</span>
+            <span class="summary-note-text">${formatCurrency(totals.taxAmount)}</span>
+          </div>
+
+          <div class="summary-row summary-note">
+            <span>Biaya Admin VA</span>
+            <span class="summary-note-text">${formatCurrency(totals.adminFee)}</span>
           </div>
 
           <div class="summary-total">
             <span>Total</span>
-            <span class="summary-total-value">${formatCurrency(this.getSubtotal())}</span>
+            <span class="summary-total-value">${formatCurrency(totals.total)}</span>
           </div>
+            `;
+          })()}
         </div>
 
         <!-- Action Buttons -->

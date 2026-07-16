@@ -3,11 +3,13 @@
  */
 import { authService } from '../services/auth.service.js';
 import Storage from '../utils/storage.js';
+import Cart from './cart.component.js';
 
 export function renderHeader() {
   const header = document.getElementById('header');
   const customer = authService.getCurrentCustomer();
   const tenant = Storage.get('tenant');
+  const itemCount = Cart.getItemCount();
 
   header.innerHTML = `
     <div class="header-container">
@@ -28,9 +30,17 @@ export function renderHeader() {
         <span>${tenant?.name || 'Booking'}</span>
       </a>
 
-     
-
       <div class="header-actions">
+        <!-- Cart Icon with Badge -->
+        <button class="cart-icon-btn" id="cart-icon-btn" onclick="Cart.toggleDrawer()" aria-label="Keranjang">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="8" cy="21" r="1"/>
+            <circle cx="19" cy="21" r="1"/>
+            <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>
+          </svg>
+          <span class="cart-badge" id="cart-badge" style="display: ${itemCount > 0 ? 'flex' : 'none'};">${itemCount > 99 ? '99+' : itemCount}</span>
+        </button>
+
         ${customer ? `
           <div class="dropdown" style="position: relative;">
             <button class="btn btn-outline btn-sm" id="user-menu-btn" style="display: flex; align-items: center; gap: var(--space-sm);">

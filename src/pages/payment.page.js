@@ -229,19 +229,25 @@ function renderPaymentDetail(booking) {
                     <span>Subtotal</span>
                     <span>${formatCurrency(booking.subtotal)}</span>
                   </div>
+                  ${booking.payment?.metadata?.taxAmount ? `
+                    <div class="booking-total-row">
+                      <span>Pajak (${booking.payment.metadata.taxRate || 11}%)</span>
+                      <span>${formatCurrency(booking.payment.metadata.taxAmount)}</span>
+                    </div>
+                    <div class="booking-total-row">
+                      <span>Biaya Admin VA</span>
+                      <span>${formatCurrency(booking.payment.metadata.adminFee || 3500)}</span>
+                    </div>
+                  ` : ''}
                   ${parseFloat(booking.discount_amount) > 0 ? `
                     <div class="booking-total-row" style="color: var(--color-success);">
                       <span>Diskon</span>
                       <span>-${formatCurrency(booking.discount_amount)}</span>
                     </div>
                   ` : ''}
-                  <div class="booking-total-row">
-                    <span>Pajak (10%)</span>
-                    <span>${formatCurrency(booking.tax_amount)}</span>
-                  </div>
                   <div class="booking-total-row total">
                     <span>Total</span>
-                    <span class="price price-large">${formatCurrency(booking.total)}</span>
+                    <span class="price price-large">${formatCurrency(booking.payment?.amount || booking.total)}</span>
                   </div>
                 </div>
               </div>
