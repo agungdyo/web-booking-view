@@ -315,7 +315,7 @@
   font-weight: var(--font-semibold);
 }
 
-.avatar-sm { width: 32px; height: 32px; font-size: var(--text-sm); }
+.avatar-sm { width: 32px; height: 23px; font-size: var(--text-sm); }
 .avatar-lg { width: 56px; height: 56px; font-size: var(--text-xl); }
 
 /* Alert */
