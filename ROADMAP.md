@@ -185,12 +185,12 @@ Project frontend untuk customer booking yang mengintegrasikan API dari web-booki
 
 #### Day 5-7: Booking API Integration
 ```
-[ ] Implement POST /bookings
+[x] Implement POST /bookings
     ├── send booking data
     ├── handle response
     ├── store booking ID
     └── redirect to payment
-[ ] Create booking success page
+[X] Create booking success page
     ├── booking code display
     ├── summary
     └── next steps

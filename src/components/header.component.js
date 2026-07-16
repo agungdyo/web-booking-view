@@ -11,6 +11,13 @@ export function renderHeader() {
 
   header.innerHTML = `
     <div class="header-container">
+
+      <nav class="header-nav" id="nav-menu">
+        <a href="/" class="nav-link" data-route="/">Beranda</a>
+        <a href="/katalog" class="nav-link" data-route="/katalog">Katalog</a>
+        <a href="/lacak" class="nav-link" data-route="/lacak">Lacak Booking</a>
+      </nav>
+
       <a href="/" class="header-logo">
         <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
@@ -21,11 +28,7 @@ export function renderHeader() {
         <span>${tenant?.name || 'Booking'}</span>
       </a>
 
-      <nav class="header-nav" id="nav-menu">
-        <a href="/" class="nav-link" data-route="/">Beranda</a>
-        <a href="/katalog" class="nav-link" data-route="/katalog">Katalog</a>
-        <a href="/lacak" class="nav-link" data-route="/lacak">Lacak Booking</a>
-      </nav>
+     
 
       <div class="header-actions">
         ${customer ? `
